@@ -3,6 +3,7 @@
 // Influencer selection dropdown with profile card
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Select,
     SelectContent,
@@ -12,43 +13,73 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGenerationStore } from '@/store';
-import { INFLUENCERS } from '@/lib/constants';
+import { useAuth } from '@/components/providers/AuthContext';
 import { InfluencerSettings } from './InfluencerSettings';
 import { cn } from '@/lib/utils';
+import { LayoutDashboard } from 'lucide-react';
 
 export function InfluencerSelect() {
-    const { selectedInfluencer, contentMode } = useGenerationStore();
+    const router = useRouter();
+    const { profile } = useAuth();
+    const { selectedInfluencer, contentMode, influencers, setSelectedInfluencer, setReferenceImages, addReferenceImage } = useGenerationStore();
     const isSensual = contentMode === 'sensual';
     const isPorn = contentMode === 'porn';
 
+    const handleInfluencerChange = (val: string) => {
+        const inf = influencers.find(i => i.id === val);
+        if (inf) {
+            setSelectedInfluencer(inf);
+
+            // Load default reference images if any
+            if (inf.defaultReferenceImages && inf.defaultReferenceImages.length > 0) {
+                setReferenceImages([]);
+                inf.defaultReferenceImages.forEach(url => {
+                    addReferenceImage({
+                        influencer_name: inf.name,
+                        image_url: url,
+                        image_type: 'edit'
+                    });
+                });
+            }
+
+            // Navigate to the influencer's workspace URL if we have a username
+            if (profile?.username) {
+                console.log(`[InfluencerSelect] Navigating to /${profile.username}/${inf.slug}`);
+                router.push(`/${profile.username}/${inf.slug}`);
+            }
+        }
+    };
+
+    const handleNewInfluencer = () => {
+        if (profile?.username) {
+            router.push(`/${profile.username}/new`);
+        }
+    };
+
+    const handleGoToDashboard = () => {
+        if (profile?.username) {
+            router.push(`/${profile.username}/dashboard`);
+        }
+    };
+
     return (
         <div className="space-y-3">
+            {/* Dashboard Link */}
+            <button
+                onClick={handleGoToDashboard}
+                className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors",
+                    "bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-400 hover:text-white border border-zinc-700"
+                )}
+            >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Back to Dashboard</span>
+            </button>
+
             {/* Dropdown */}
             <Select
-                defaultValue={selectedInfluencer.id}
-                onValueChange={(val) => {
-                    const inf = INFLUENCERS.find(i => i.id === val);
-                    if (inf) {
-                        useGenerationStore.setState({ selectedInfluencer: inf });
-
-                        // Load default reference images if any
-                        if (inf.defaultReferenceImages && inf.defaultReferenceImages.length > 0) {
-                            const { addReferenceImage, setReferenceImages } = useGenerationStore.getState();
-
-                            // Clear existing (optional, or maybe we want to keep them? usually better to start fresh for a new influencer)
-                            setReferenceImages([]);
-
-                            // Add defaults
-                            inf.defaultReferenceImages.forEach(url => {
-                                addReferenceImage({
-                                    influencer_name: inf.name,
-                                    image_url: url,
-                                    image_type: 'edit' // Default to edit type for defaults
-                                });
-                            });
-                        }
-                    }
-                }}
+                value={selectedInfluencer?.id || ''}
+                onValueChange={handleInfluencerChange}
             >
                 <SelectTrigger className={cn(
                     "w-full transition-colors",
@@ -61,13 +92,13 @@ export function InfluencerSelect() {
                     <SelectValue placeholder="Select influencer" />
                 </SelectTrigger>
                 <SelectContent>
-                    {INFLUENCERS.map((influencer) => (
+                    {influencers.map((influencer) => (
                         <SelectItem key={influencer.id} value={influencer.id}>
                             <div className="flex items-center gap-2">
-                                {influencer.defaultReferenceImages && influencer.defaultReferenceImages.length > 0 ? (
+                                {influencer.thumbnail || influencer.avatar ? (
                                     <div className="w-6 h-6 rounded-full overflow-hidden border border-gray-200 dark:border-gray-600">
                                         <img
-                                            src={influencer.defaultReferenceImages[0]}
+                                            src={influencer.thumbnail || influencer.avatar}
                                             alt={influencer.name}
                                             className="w-full h-full object-cover"
                                         />
@@ -92,12 +123,14 @@ export function InfluencerSelect() {
                     <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-1" />
 
                     <div className="p-1">
-                        <button className={cn(
-                            "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors group cursor-pointer outline-none select-none",
-                            isPorn
-                                ? "hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
-                                : "hover:bg-cyan-50 dark:hover:bg-cyan-900/20 text-gray-600 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400"
-                        )}>
+                        <button
+                            onClick={handleNewInfluencer}
+                            className={cn(
+                                "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors group cursor-pointer outline-none select-none",
+                                isPorn
+                                    ? "hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
+                                    : "hover:bg-cyan-50 dark:hover:bg-cyan-900/20 text-gray-600 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400"
+                            )}>
                             <div className={cn(
                                 "w-6 h-6 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform",
                                 isPorn
@@ -133,9 +166,9 @@ export function InfluencerSelect() {
                                 ? "bg-gradient-to-br from-amber-500/20 to-amber-700/20"
                                 : "bg-gradient-to-br from-[#FF6B9D]/20 to-[#4ECDC4]/20"
                     )}>
-                        {selectedInfluencer.defaultReferenceImages && selectedInfluencer.defaultReferenceImages.length > 0 ? (
+                        {selectedInfluencer?.thumbnail || selectedInfluencer?.avatar ? (
                             <img
-                                src={selectedInfluencer.defaultReferenceImages[0]}
+                                src={selectedInfluencer.thumbnail || selectedInfluencer.avatar}
                                 alt={selectedInfluencer.name}
                                 className="w-full h-full object-cover"
                             />
@@ -149,7 +182,7 @@ export function InfluencerSelect() {
                                             ? "bg-gradient-to-br from-amber-500 to-amber-700"
                                             : "bg-gradient-to-br from-[#FF6B9D] to-[#4ECDC4]"
                                 )}>
-                                    {selectedInfluencer.name.charAt(0)}
+                                    {selectedInfluencer?.name?.charAt(0) || '?'}
                                 </div>
                             </div>
                         )}

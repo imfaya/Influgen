@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ContentMode } from '@/types';
+import { getUserApiKey } from '@/lib/getUserApiKey';
 
 // System prompt for generating pose/angle variations
 const SERIES_VARIATION_SYSTEM = `You are a professional photography director planning a photo series.
@@ -38,11 +39,12 @@ export async function POST(request: Request) {
             contentMode?: ContentMode;
         } = await request.json();
 
-        const apiKey = process.env.WAVESPEED_API_KEY;
+        // Get user's API key (falls back to env var if not configured)
+        const apiKey = await getUserApiKey();
 
         if (!apiKey) {
             return NextResponse.json(
-                { error: 'WAVESPEED_API_KEY is not configured' },
+                { error: 'Aucune clé API Wavespeed configurée. Veuillez configurer votre clé dans les paramètres.' },
                 { status: 500 }
             );
         }

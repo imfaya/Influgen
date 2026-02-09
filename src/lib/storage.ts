@@ -46,6 +46,53 @@ export const uploadToDrive = async (imageUrl: string, mode: ContentMode, date: D
     }
 };
 
+/**
+ * Specifically for background uploads during generation.
+ * Organizes images in the user-drive bucket by mode and date.
+ */
+export const uploadGeneratedImage = async (
+    imageUrl: string,
+    mode: ContentMode,
+    influencerId: string,
+    date: Date = new Date()
+) => {
+    const client = getSupabase();
+    if (!client) throw new Error('Supabase client not initialized');
+
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const timestamp = date.getTime();
+        const rand = Math.floor(Math.random() * 1000);
+        const filename = `gen-${influencerId}-${timestamp}-${rand}.png`;
+
+        const path = `${mode}/${year}-${month}-${day}/${filename}`;
+
+        const { data, error } = await client.storage
+            .from('user-drive')
+            .upload(path, blob, {
+                contentType: 'image/png',
+                upsert: false
+            });
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = client.storage
+            .from('user-drive')
+            .getPublicUrl(path);
+
+        return publicUrl;
+    } catch (error) {
+        console.error('Failed to upload generated image to Supabase:', error);
+        throw error;
+    }
+};
+
 export const getDriveFiles = async (path: string = '') => {
     const client = getSupabase();
     if (!client) return [];

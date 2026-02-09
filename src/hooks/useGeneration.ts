@@ -1,11 +1,12 @@
-// Custom hook for image generation logic
-
 import { useCallback, useState } from 'react';
 import { useGenerationStore } from '@/store';
 import { generateImages, createGenerationRequest } from '@/lib/wavespeed';
-import { generateRandomPrompt, generateSeriesContinuationPrompt, INFLUENCERS } from '@/lib/constants';
-import { supabase } from '@/lib/supabase';
+import { generateRandomPrompt, generateSeriesContinuationPrompt, INFLUENCERS, DEFAULT_NEGATIVE_PROMPT } from '@/lib/constants';
+import { supabaseAuth as supabase } from '@/lib/supabase-auth';
+import { uploadGeneratedImage } from '@/lib/storage';
 import { Post } from '@/types';
+import { filterReferenceImagesByMode } from '@/lib/filterByContentMode';
+
 
 export function useGeneration() {
     const {
@@ -125,7 +126,11 @@ export function useGeneration() {
             isSeries?: boolean,
             targetGenerationId?: string,
             sourceInfo?: { generationId: string; imageUrl: string },
-            stealItImage?: string // New field
+            stealItImage?: string, // New field
+            isRealismBoost?: boolean, // For iPhone Realistic - use ONLY the input image
+            modelOverride?: string, // For premium realism boost with different model
+            imageStrength?: number, // Control preservation (0-1)
+            negativePrompt?: string // Override negative prompt
         }
     ) => {
         // Check rate limit
@@ -145,9 +150,17 @@ export function useGeneration() {
         // Use getState to ensure we have the very latest prompt even if closure is stale
         // This is critical for Quick Post which updates store and calls generate immediately
         const userPrompt = options?.promptOverride || useGenerationStore.getState().prompt.trim();
-        const finalPrompt = userPrompt
-            ? `${activeBasePrompt}. ${userPrompt}`
-            : activeBasePrompt;
+
+        let finalPrompt = '';
+        if (options?.isRealismBoost) {
+            // For Realism Boost, use ONLY the override prompt logic (iPhone style)
+            // Do NOT include the base prompt to avoid confusing the model with character details
+            finalPrompt = userPrompt;
+        } else {
+            finalPrompt = userPrompt
+                ? `${activeBasePrompt}. ${userPrompt}`
+                : activeBasePrompt;
+        }
 
         // Extract options with defaults
         const {
@@ -166,6 +179,23 @@ export function useGeneration() {
             .filter(img => img.influencer_name === selectedInfluencer.name)
             .map(img => img.image_url);
 
+        // CRITICAL: Filter reference images by content mode
+        // In social/sensual modes, exclude explicit images (boobs, pussy)
+        // In porn mode, allow all image types
+        const filteredReferenceImages = filterReferenceImagesByMode(
+            referenceImages.filter(img => img.influencer_name === selectedInfluencer.name),
+            contentMode
+        );
+
+        // Debug logging to verify filtering
+        console.log(`[generate] Content mode: ${contentMode}`);
+        console.log(`[generate] Total reference images: ${referenceImages.filter(img => img.influencer_name === selectedInfluencer.name).length}`);
+        console.log(`[generate] After filtering: ${filteredReferenceImages.length}`);
+        console.log(`[generate] Image types being used:`, filteredReferenceImages.map(img => img.image_type));
+
+        // Use filtered images only
+        userReferenceImages = filteredReferenceImages.map(img => img.image_url);
+
         // Get default reference images for the character (face consistency)
         // Limit to 3 max to avoid API timeouts with large payloads
         const defaultImages = (selectedInfluencer.defaultReferenceImages || []).slice(0, 3);
@@ -174,7 +204,8 @@ export function useGeneration() {
         let activeReferenceImages = [...defaultImages, ...userReferenceImages].slice(0, 4);
 
         // Model to use - default to text-to-image, switch to edit for series
-        let modelToUse = parameters.model;
+        // If modelOverride is provided, use that instead
+        let modelToUse = options?.modelOverride || parameters.model;
 
         // STEAL IT MODE V2.2: Perfect Balance of Identity and Visual Consistency
         if (stealItImage) {
@@ -184,7 +215,10 @@ export function useGeneration() {
             // Priority: Stolen Image (Structure/Comp/Clothing) + MAX Face References for Identity
             // We use the stolen image ONCE to avoid it overriding the face too much
             // We use 3 face images to anchor the identity strongly
-            const faceImages = defaultImages.slice(0, 3);
+
+            // FIX: Combine default (local/legacy) and user (DB) reference images
+            const allFaceReferences = [...defaultImages, ...userReferenceImages];
+            const faceImages = allFaceReferences.slice(0, 3);
             activeReferenceImages = [stealItImage, ...faceImages];
 
             // Aggressive Identity-Swap Prompting (V2.3: No names, focus on photo-ordering logic)
@@ -197,14 +231,22 @@ export function useGeneration() {
         // IMAGE-TO-IMAGE MODE (Series or Variation)
         else if (inputImageOverride) {
             // Use the edit model to maintain visual consistency from the source image
-            modelToUse = 'bytedance/seedream-v4.5/edit';
+            // Only defaults to seedream-edit if no override is provided (e.g. Premium uses Nano Banana)
+            modelToUse = options?.modelOverride || 'bytedance/seedream-v4.5/edit';
 
-            // Put the scene/source image FIRST for maximum structural priority
-            // Use face images to maintain identity
-            const faceImages = defaultImages.slice(0, 2);
-            activeReferenceImages = [inputImageOverride, ...faceImages];
+            // REALISM BOOST MODE: Use ONLY the input image, no face references
+            // This prevents Seedream from creating montages
+            if (options?.isRealismBoost) {
+                activeReferenceImages = [inputImageOverride];
+                console.log('[generate] Realism boost active - using ONLY input image');
+            } else {
+                // Put the scene/source image FIRST for maximum structural priority
+                // Use face images to maintain identity
+                const faceImages = defaultImages.slice(0, 2);
+                activeReferenceImages = [inputImageOverride, ...faceImages];
+            }
 
-            if (isSeries) {
+            if (isSeries && !options?.isRealismBoost) {
                 // SERIES MODE: Generate a variation (different pose/action)
                 const seriesVariation = customVariationPrompt || generateSeriesContinuationPrompt('', seriesContext || {});
                 generationPrompt = `${activeBasePrompt}. ${seriesVariation}. Same exact location, same exact clothing, same exact lighting.`;
@@ -212,13 +254,15 @@ export function useGeneration() {
             } else {
                 // VARIATION/REALISM MODE: Keep everything same, only apply the prompt (e.g. realism boost)
                 // generationPrompt is already finalPrompt (activeBasePrompt + userPrompt)
-                console.log('[generate] Image variation active');
+                generationPrompt = finalPrompt;
+                console.log('[generate] Image variation/Realism active');
             }
         }
 
         // Start a pending generation for UI (shows loading rectangle)
         // Pass sourceInfo for grouping pending generations by their OG image
         const pendingId = addPendingGeneration(
+            selectedInfluencer.id,
             finalPrompt.slice(0, 100),
             contentMode,
             sourceInfo?.generationId,
@@ -234,7 +278,9 @@ export function useGeneration() {
                 parameters.numOutputs,
                 parameters.aspectRatio,
                 activeReferenceImages.length > 0 ? activeReferenceImages : undefined,
-                modelToUse // Pass the dynamic model (edit vs standard)
+                modelToUse, // Pass the dynamic model (edit vs standard)
+                options?.imageStrength,
+                options?.negativePrompt || DEFAULT_NEGATIVE_PROMPT // Use default negative prompt unless overridden
             );
 
             // Use the explicitly passed targetGenerationId for series continuation
@@ -244,7 +290,16 @@ export function useGeneration() {
             const result = await generateImages(request);
 
             if (result.success && result.images) {
-                const images = result.images;
+                const tempImages = result.images!;
+
+                // Upload to Supabase Storage for permanent persistence
+                const images = await Promise.all(
+                    tempImages.map(url => uploadGeneratedImage(url, contentMode, selectedInfluencer.id))
+                ).catch(err => {
+                    console.error('[useGeneration] Failed to persist images to Supabase Storage:', err);
+                    return tempImages; // Fallback to temporary URLs
+                });
+
                 recordGeneration();
 
                 if (isSeries && activeGenerationId) {
@@ -255,13 +310,19 @@ export function useGeneration() {
                     const latestGen = useGenerationStore.getState().generations.find(g => g.id === activeGenerationId);
 
                     if (latestGen) {
-                        await supabase
+                        const { error: updateError } = await supabase
                             .from('generations')
                             .update({
                                 image_urls: latestGen.image_urls,
-                                is_series: true
+                                is_series: true,
+                                created_at: latestGen.created_at
                             })
                             .eq('id', activeGenerationId);
+
+                        if (updateError) {
+                            console.error('[useGeneration] Critical: Failed to update generation in DB:', updateError);
+                            setError(`Warning: Failed to save image to cloud history (${updateError.message}).`);
+                        }
                     }
                 } else {
                     // If starting a new series (not continuation), extract context
@@ -280,6 +341,7 @@ export function useGeneration() {
                         image_urls: images,
                         is_series: false,
                         series_id: undefined,
+                        influencer_id: selectedInfluencer.id,
                         content_mode: contentMode,
                         tags: stealItImage
                             ? [...(tags || []), 'steal-it']
@@ -288,14 +350,36 @@ export function useGeneration() {
 
                     const addedGen = addGeneration(newGen);
 
-                    // Create in Supabase
-                    await supabase
+                    // Create in Supabase (Attempt to save)
+                    // Sanitize payload: Exclude 'influencer_name' which doesn't exist in DB
+                    const supabasePayload = {
+                        id: addedGen.id,
+                        influencer_id: selectedInfluencer.id,
+                        prompt: generationPrompt,
+                        parameters: parameters,
+                        image_urls: images,
+                        is_series: false,
+                        series_id: null,
+                        content_mode: contentMode,
+                        tags: stealItImage
+                            ? [...(tags || []), 'steal-it']
+                            : tags || ((inputImageOverride && !isSeries) ? ['variation'] : []),
+                        created_at: addedGen.created_at
+                    };
+
+                    const { error: insertError } = await supabase
                         .from('generations')
-                        .insert({
-                            ...newGen,
-                            id: addedGen.id,
-                            created_at: addedGen.created_at
-                        });
+                        .insert(supabasePayload);
+
+                    if (insertError) {
+                        console.error('[useGeneration] Critical: Failed to save generation to DB:', insertError);
+                        // Optional: Show toast or error state?
+                        // For now we log it. The local state is already updated, but it will be lost on refresh.
+                        // We should ideally warn the user.
+                        setError(`Warning: Image generated but failed to save to cloud (${insertError.message}). It may disappear on refresh.`);
+                    } else {
+                        console.log('[useGeneration] Successfully saved generation to DB:', addedGen.id);
+                    }
                 }
 
                 // Return generated images for use by other functions
@@ -432,6 +516,7 @@ export function useGeneration() {
             // Step 2: Start ALL pending generations at once (for UI grouping)
             const pendingIds = prompts.map((randomPrompt) =>
                 addPendingGeneration(
+                    selectedInfluencer.id,
                     randomPrompt.slice(0, 100),
                     contentMode,
                     undefined, // no sourceGenerationId
@@ -449,13 +534,25 @@ export function useGeneration() {
                         generationPrompt,
                         1, // Always 1 output per batch item
                         parameters.aspectRatio,
-                        activeReferenceImages.length > 0 ? activeReferenceImages : undefined
+                        activeReferenceImages.length > 0 ? activeReferenceImages : undefined,
+                        undefined, // model (will be set below)
+                        undefined, // imageStrength
+                        DEFAULT_NEGATIVE_PROMPT // Apply negative prompt to batch generations
                     );
                     request.model = parameters.model as any;
 
                     const result = await generateImages(request);
 
                     if (result.success && result.images) {
+                        const tempImages = result.images!;
+                        // Upload to Supabase Storage for permanent persistence
+                        const images = await Promise.all(
+                            tempImages.map(url => uploadGeneratedImage(url, contentMode, selectedInfluencer.id))
+                        ).catch(err => {
+                            console.error('[useGeneration] Batch: Failed to persist to Supabase Storage:', err);
+                            return tempImages; // Fallback
+                        });
+
                         recordGeneration();
 
                         // Save as new entry to history (but don't add to UI until ALL complete)
@@ -463,25 +560,33 @@ export function useGeneration() {
                             influencer_name: selectedInfluencer.name,
                             prompt: generationPrompt,
                             parameters,
-                            image_urls: result.images,
+                            image_urls: images,
                             is_series: false,
                             series_id: undefined,
+                            influencer_id: selectedInfluencer.id,
                             content_mode: contentMode,
                             tags: ['batch_og'],
                         };
 
                         const addedGen = addGeneration(newGen);
 
-                        // Save to Supabase
+                        // Save to Supabase (Sanitized payload)
                         await supabase
                             .from('generations')
                             .insert({
-                                ...newGen,
                                 id: addedGen.id,
+                                influencer_id: selectedInfluencer.id,
+                                prompt: generationPrompt,
+                                parameters: parameters,
+                                image_urls: images,
+                                is_series: false,
+                                series_id: null,
+                                content_mode: contentMode,
+                                tags: ['batch_og'],
                                 created_at: addedGen.created_at
                             });
 
-                        return { success: true, images: result.images };
+                        return { success: true, images: images };
                     }
                     return { success: false };
                 } catch (err) {
@@ -542,14 +647,55 @@ export function useGeneration() {
         continueSeries,
         clearSeries,
         generateBatchOG,
-        boostRealism: useCallback(async (imageUrl: string) => {
-            const realismPrompt = "Keep the image completely unchanged in content, composition, subject, pose, background, lighting, and colors. Do not retouch or beautify. Only adjust the overall image quality to match a real modern iPhone photo: natural colors, slight softness, mild smartphone compression, and digital noise. Clean, realistic, candid iPhone photo. No glitches, no artifacts, no pixel corruption.";
+        boostRealism: useCallback(async (imageUrl: string, generationId?: string) => {
+            const realismPrompt = "iphone photo, smartphone camera, natural lighting, candid moment, unedited, raw sensor data, slight noise, authentic, reality";
+            const negativePrompt = "vignette, dark corners, retro filter, instagram filter, sepia, black and white, professional, studio lighting, 4k, 8k, sharp, focused, clean, high quality, masterpiece, retouching, airbrushed, makeup, painting, drawing, illustration";
 
             return generate(imageUrl, undefined, {
-                isSeries: false,
+                isSeries: !!generationId, // If generationId provided, treat as series continuation
+                targetGenerationId: generationId, // Append to this generation
                 promptOverride: realismPrompt,
-                tags: ['realism_boost']
+                tags: ['realism_boost'],
+                isRealismBoost: true, // Use ONLY the input image, no face references
+                sourceInfo: generationId ? { generationId, imageUrl } : undefined,
+                imageStrength: 0.65, // Allow significant change (0.65 means keep 65% of original structure, let 35% change for noise/blur)
+                negativePrompt: negativePrompt
             });
+        }, [generate]),
+        boostRealismPremium: useCallback(async (imageUrl: string, generationId?: string) => {
+            const realismPrompt = "iphone photo, smartphone camera, candid, snapchat quality, raw, unedited, authentic daily life";
+            const negativePrompt = "vignette, dark corners, retro filter, instagram filter, sepia, professional, studio lighting, 4k, 8k, sharp, focused, clean, high quality, masterpiece, retouching, airbrushed, glammed up";
+
+            // Try Nano Banana Pro first (premium quality)
+            const result = await generate(imageUrl, undefined, {
+                isSeries: !!generationId,
+                targetGenerationId: generationId,
+                promptOverride: realismPrompt,
+                tags: ['realism_boost_premium'],
+                isRealismBoost: true,
+                modelOverride: 'google/nano-banana-pro/edit',
+                sourceInfo: generationId ? { generationId, imageUrl } : undefined,
+                imageStrength: 0.6,
+                negativePrompt: negativePrompt
+            });
+
+            // If Nano Banana failed (returns null), fallback to Seedream
+            if (!result) {
+                console.warn('[boostRealismPremium] Nano Banana failed, falling back to Seedream');
+                return generate(imageUrl, undefined, {
+                    isSeries: !!generationId,
+                    targetGenerationId: generationId,
+                    promptOverride: realismPrompt,
+                    tags: ['realism_boost_fallback'],
+                    isRealismBoost: true,
+                    modelOverride: 'bytedance/seedream-v4.5/edit', // Fallback model
+                    sourceInfo: generationId ? { generationId, imageUrl } : undefined,
+                    imageStrength: 0.65,
+                    negativePrompt: negativePrompt
+                });
+            }
+
+            return result;
         }, [generate]),
     };
 }

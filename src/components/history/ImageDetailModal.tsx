@@ -38,7 +38,11 @@ interface ImageDetailModalProps {
     isSensual?: boolean;
     onSeriesSelect?: (index: number) => void;
     onRealismBoost?: () => void;
+    onRealismBoostPremium?: () => void;
     isTrashMode?: boolean;
+    // Context-aware navigation (Global history)
+    onGlobalPrev?: () => void;
+    onGlobalNext?: () => void;
 }
 
 export function ImageDetailModal({
@@ -59,7 +63,10 @@ export function ImageDetailModal({
     isSensual = false,
     onSeriesSelect,
     onRealismBoost,
+    onRealismBoostPremium,
     isTrashMode = false,
+    onGlobalPrev,
+    onGlobalNext,
 }: ImageDetailModalProps) {
     // Store access
     const { updateGeneration, moveToTrash, restoreFromTrash, permanentDelete, trash } = useGenerationStore();
@@ -161,17 +168,27 @@ export function ImageDetailModal({
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (!isOpen) return;
 
-        if (e.key === 'ArrowLeft' && canGoPrev) {
+        if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            onSeriesPrev();
-        } else if (e.key === 'ArrowRight' && canGoNext) {
+            // Prioritize series navigation if available, otherwise global
+            if (canGoPrev) {
+                onSeriesPrev();
+            } else if (onGlobalPrev) {
+                onGlobalPrev();
+            }
+        } else if (e.key === 'ArrowRight') {
             e.preventDefault();
-            onSeriesNext();
+            // Prioritize series navigation if available, otherwise global
+            if (canGoNext) {
+                onSeriesNext();
+            } else if (onGlobalNext) {
+                onGlobalNext();
+            }
         } else if (e.key === 'Escape') {
             e.preventDefault();
             onClose();
         }
-    }, [isOpen, canGoPrev, canGoNext, onSeriesPrev, onSeriesNext, onClose]);
+    }, [isOpen, canGoPrev, canGoNext, onSeriesPrev, onSeriesNext, onGlobalPrev, onGlobalNext, onClose]);
 
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown);
@@ -455,6 +472,53 @@ export function ImageDetailModal({
                 e.stopPropagation();
             }}
         >
+            {/* Side Glow Effects - Visual cue for navigation - Refined: Rounder & Centered */}
+            {onGlobalPrev && (
+                <div className={cn(
+                    "fixed left-0 top-1/2 -translate-y-1/2 h-[50vh] w-32 pointer-events-none z-[100] transition-opacity duration-500 ease-in-out",
+                    "rounded-r-full blur-[60px] opacity-40",
+                    isSensual ? "bg-rose-500" :
+                        isPorn ? "bg-white" :
+                            "bg-cyan-500"
+                )} />
+            )}
+
+            {onGlobalNext && (
+                <div className={cn(
+                    "fixed right-0 top-1/2 -translate-y-1/2 h-[50vh] w-32 pointer-events-none z-[100] transition-opacity duration-500 ease-in-out",
+                    "rounded-l-full blur-[60px] opacity-40",
+                    isSensual ? "bg-rose-500" :
+                        isPorn ? "bg-white" :
+                            "bg-cyan-500"
+                )} />
+            )}
+
+            {/* Global Previous Arrow - "Outside of everything" */}
+            {onGlobalPrev && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onGlobalPrev(); }}
+                    className="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-[110] p-4 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md text-white/50 hover:text-white transition-all duration-300 border border-white/5 hover:border-white/20 group hidden md:flex"
+                    aria-label="Previous Image"
+                >
+                    <svg className="w-8 h-8 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            )}
+
+            {/* Global Next Arrow - "Outside of everything" */}
+            {onGlobalNext && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onGlobalNext(); }}
+                    className="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-[110] p-4 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md text-white/50 hover:text-white transition-all duration-300 border border-white/5 hover:border-white/20 group hidden md:flex"
+                    aria-label="Next Image"
+                >
+                    <svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            )}
+
             <div className="flex flex-col lg:flex-row items-center justify-center gap-6 p-4 lg:p-8 max-w-7xl w-full h-full relative">
                 {/* Image & Series Card Wrapper - Flex column to align cards with image */}
                 <div className="flex flex-col items-center justify-center relative flex-1 w-full max-w-5xl">
@@ -544,10 +608,10 @@ export function ImageDetailModal({
 
                             {hasSeriesNav && (
                                 <div className={cn(
-                                    "absolute bottom-3 left-1/2 -translate-x-1/2",
+                                    "absolute top-3 left-3 z-20",
                                     "px-3 py-1.5 rounded-full",
-                                    "bg-black/60 backdrop-blur-sm border border-white/10",
-                                    "text-sm font-medium"
+                                    "bg-black/70 backdrop-blur-md border border-white/20",
+                                    "text-sm font-semibold shadow-lg"
                                 )}>
                                     <span className={isSensual ? "text-rose-400" : isPorn ? "text-neutral-400" : "text-cyan-400"}>{currentSeriesIndex + 1}</span>
                                     <span className="text-gray-400 mx-1">/</span>
@@ -973,19 +1037,36 @@ export function ImageDetailModal({
                                     Continue Series
                                 </Button>
 
-                                <Button
-                                    size="sm"
-                                    className={cn(
-                                        "w-full justify-center h-10 font-semibold transition-all",
-                                        "bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                                    )}
-                                    onClick={() => { onRealismBoost?.(); onClose(); }}
-                                >
-                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                    iPhone Realistic
-                                </Button>
+                                {/* Realism Boost Buttons - Split into Standard and Premium */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        size="sm"
+                                        className={cn(
+                                            "w-full justify-center h-10 font-semibold transition-all text-xs",
+                                            "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                                        )}
+                                        onClick={() => { onRealismBoost?.(); onClose(); }}
+                                    >
+                                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        iPhone
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        className={cn(
+                                            "w-full justify-center h-10 font-semibold transition-all text-xs",
+                                            "bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30",
+                                            "text-amber-300 border border-amber-500/30"
+                                        )}
+                                        onClick={() => { onRealismBoostPremium?.(); onClose(); }}
+                                    >
+                                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                        </svg>
+                                        Premium
+                                    </Button>
+                                </div>
 
                                 {/* Series Download Button */}
                                 {localImages.length > 1 && (

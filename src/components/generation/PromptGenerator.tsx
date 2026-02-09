@@ -375,7 +375,7 @@ export function PromptGenerator() {
                 <div className="relative flex flex-col" ref={dropdownRef}>
                     <button
                         onClick={toggleShootingPicker}
-                        disabled={isShootingInProgress || isGenerating}
+                        disabled={isShootingInProgress}
                         className={cn(
                             "w-16 h-full min-h-[148px] rounded-xl transition-all duration-300",
                             "flex flex-col items-center justify-center gap-2",

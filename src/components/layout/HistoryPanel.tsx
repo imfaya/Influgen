@@ -145,6 +145,7 @@ export function HistoryPanel() {
                         </div>
                     )}
 
+
                     {/* Series Creator Provider Wrapper */}
                     <SeriesCreatorBubble
                         isVisible={isHistoryPanelOpen && historyFilter === 'not_continued'}

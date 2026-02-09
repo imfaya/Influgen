@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { Generation, GenerationParameters, Influencer, ReferenceImage, AspectRatio, ContentMode, PendingGeneration, Post } from '@/types';
 import { INFLUENCERS, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from '@/lib/constants';
-import { supabase } from '@/lib/supabase';
+import { supabaseAuth as supabase, supabaseAuth } from '@/lib/supabase-auth';
 
 export interface TrashItem {
     id: string;
@@ -50,7 +50,7 @@ interface GenerationStore {
 
     // Pending generations (for stacked loading UI)
     pendingGenerations: PendingGeneration[];
-    addPendingGeneration: (prompt: string, contentMode: ContentMode, sourceGenerationId?: string, sourceImageUrl?: string, batchId?: string, tags?: string[]) => string;
+    addPendingGeneration: (influencerId: string, prompt: string, contentMode: ContentMode, sourceGenerationId?: string, sourceImageUrl?: string, batchId?: string, tags?: string[]) => string;
     removePendingGeneration: (id: string) => void;
 
     // Series tracking
@@ -105,7 +105,9 @@ interface GenerationStore {
     setCustomBasePrompt: (influencerId: string, prompt: string) => void;
     getCustomBasePrompt: (influencerId: string) => string;
 
+
     // Supabase Sync
+    loadUserData: (userId: string) => Promise<boolean>;
     syncInfluencerSettings: (influencerId: string) => Promise<void>;
     saveInfluencerSettings: (influencerId: string, basePrompt: string, systemPrompt: string) => Promise<void>;
 
@@ -304,11 +306,12 @@ export const useGenerationStore = create<GenerationStore>()(
 
             // Pending generations for parallel loading UI
             pendingGenerations: [],
-            addPendingGeneration: (prompt, contentMode, sourceGenerationId?, sourceImageUrl?, batchId?, tags?) => {
+            addPendingGeneration: (influencerId, prompt, contentMode, sourceGenerationId?, sourceImageUrl?, batchId?, tags?) => {
                 const id = uuidv4();
                 set((state) => ({
                     pendingGenerations: [...state.pendingGenerations, {
                         id,
+                        influencer_id: influencerId,
                         prompt,
                         contentMode,
                         startedAt: new Date().toISOString(),
@@ -349,13 +352,25 @@ export const useGenerationStore = create<GenerationStore>()(
                 }));
                 return newGen;
             },
-            appendToGeneration: (id, newImages) => set((state) => ({
-                generations: state.generations.map(g =>
-                    g.id === id
-                        ? { ...g, image_urls: [...g.image_urls, ...newImages], is_series: true }
-                        : g
-                )
-            })),
+            appendToGeneration: (id, newImages) => set((state) => {
+                const generation = state.generations.find(g => g.id === id);
+                if (!generation) return {};
+
+                const updatedGen = {
+                    ...generation,
+                    image_urls: [...generation.image_urls, ...newImages],
+                    is_series: true,
+                    created_at: new Date().toISOString() // Update timestamp to now
+                };
+
+                return {
+                    generations: [
+                        updatedGen,
+                        ...state.generations.filter(g => g.id !== id)
+                    ],
+                    currentGenerationId: id // Make it current
+                };
+            }),
             removeGeneration: (id) => set((state) => ({
                 generations: state.generations.filter(g => g.id !== id),
                 currentGenerationId: state.currentGenerationId === id ? null : state.currentGenerationId,
@@ -521,6 +536,230 @@ export const useGenerationStore = create<GenerationStore>()(
                 }
             },
 
+            loadUserData: async (userId) => {
+                console.log('[loadUserData] Starting sync for user:', userId);
+                try {
+                    // PRE-FLIGHT CHECK: Verify we have a valid session before syncing
+                    // This prevents wiping local data if the session token has expired
+                    const { data: { session }, error: sessionError } = await supabaseAuth.auth.getSession();
+
+                    if (sessionError || !session) {
+                        console.warn('[loadUserData] Sync aborted - No valid session found. Preserving local data.');
+                        return false;
+                    }
+
+                    // PARALLEL FETCH: Fetch influencers and profile concurrently
+                    const [influencersResult, profileResult] = await Promise.all([
+                        supabase.from('influencers').select('*').eq('user_id', userId),
+                        supabase.from('profiles').select('username').eq('id', userId).single()
+                    ]);
+
+                    if (influencersResult.error) throw influencersResult.error;
+
+                    let finalInfluencers = influencersResult.data || [];
+
+                    // SEEDING LOGIC: If user is "imfaya" and has 0 influencers, seed Lyra Chenet
+                    if (finalInfluencers.length === 0 && profileResult.data?.username === 'imfaya') {
+                        console.log('[loadUserData] Admin "imfaya" detected with no influencers. Seeding Lyra Chenet...');
+                        const defaultLyra = INFLUENCERS.find(i => i.name === 'Lyra Chenet');
+                        if (defaultLyra) {
+                            const { data: newInfluencer, error: seedError } = await supabase.from('influencers').insert({
+                                user_id: userId,
+                                name: defaultLyra.name,
+                                slug: 'lyra-chenet',
+                                description: defaultLyra.description,
+                                base_prompt: defaultLyra.basePrompt,
+                                thumbnail_url: defaultLyra.thumbnail,
+                                avatar_url: defaultLyra.avatar,
+                                default_reference_images: defaultLyra.defaultReferenceImages
+                            }).select().single();
+
+                            if (!seedError && newInfluencer) {
+                                console.log('[loadUserData] Seeding successful:', newInfluencer);
+                                finalInfluencers = [newInfluencer];
+                            } else {
+                                console.error('[loadUserData] Seeding failed:', seedError);
+                            }
+                        }
+                    } else if (finalInfluencers.length === 0) {
+                        console.log(`[loadUserData] User ${profileResult.data?.username} found 0 influencers. Clearing local list.`);
+                    } else {
+                        console.log(`[loadUserData] Found ${finalInfluencers.length} influencers on server. Proceeding with sync.`);
+                    }
+
+                    // Build map for ID -> Name resolution
+                    const influencerMap = new Map<string, string>();
+                    const influencerObjMap: Record<string, Influencer> = {};
+
+                    const localInfluencers: Influencer[] = finalInfluencers.map((inf: any) => {
+                        influencerMap.set(inf.id, inf.name);
+
+                        // Fallback: If DB has no reference images, try to recover them from constants (e.g. for Lyra)
+                        let defaultReferenceImages = inf.default_reference_images || [];
+                        if (defaultReferenceImages.length === 0) {
+                            const constantInfluencer = INFLUENCERS.find(i => i.name === inf.name);
+                            if (constantInfluencer && constantInfluencer.defaultReferenceImages && constantInfluencer.defaultReferenceImages.length > 0) {
+                                console.log(`[loadUserData] Recovering default reference images for ${inf.name} from constants`);
+                                defaultReferenceImages = constantInfluencer.defaultReferenceImages;
+
+                                // Omitted: We could auto-update the DB here, but for now we just fix the session state
+                                // to ensure the feature works immediately.
+                            }
+                        }
+
+                        const mapped: Influencer = {
+                            id: inf.id,
+                            name: inf.name,
+                            slug: inf.slug || inf.id, // Fallback to ID if slug is missing
+                            description: inf.description || '',
+                            basePrompt: inf.base_prompt || '',
+                            defaultReferenceImages: defaultReferenceImages,
+                            thumbnail: inf.thumbnail_url || '',
+                            avatar: inf.avatar_url || '',
+                            llmSystemPrompt: inf.llm_system_prompt || undefined,
+                            instagram_account_id: inf.instagram_account_id || undefined
+                        };
+                        influencerObjMap[inf.id] = mapped;
+                        return mapped;
+                    });
+
+                    // PARALLEL FETCH: Reference images, Generations (with pagination), and Trash
+                    const influencerIds = Array.from(influencerMap.keys());
+
+                    const [refImagesResult, generationsResult, trashResult] = await Promise.all([
+                        influencerIds.length > 0
+                            ? supabase.from('reference_images').select('*').in('influencer_id', influencerIds)
+                            : Promise.resolve({ data: [], error: null }),
+                        influencerIds.length > 0
+                            ? supabase.from('generations').select('*').in('influencer_id', influencerIds)
+                                .order('created_at', { ascending: false })
+                                .limit(100) // PAGINATION: Load last 100 generations initially
+                            : Promise.resolve({ data: [], error: null }),
+                        // Fetch trash items for this user
+                        supabase.from('trash').select('*').eq('user_id', userId).order('deleted_at', { ascending: false })
+                    ]);
+
+                    if (refImagesResult.error) throw refImagesResult.error;
+                    if (generationsResult.error) throw generationsResult.error;
+                    if (trashResult.error) {
+                        console.warn('[loadUserData] Failed to load trash:', trashResult.error);
+                    }
+
+                    const referenceImagesByInfluencer: Record<string, ReferenceImage[]> = {};
+
+                    (refImagesResult.data || []).forEach((img: any) => {
+                        const infId = img.influencer_id;
+                        if (!referenceImagesByInfluencer[infId]) {
+                            referenceImagesByInfluencer[infId] = [];
+                        }
+
+                        referenceImagesByInfluencer[infId].push({
+                            id: img.id,
+                            influencer_name: influencerMap.get(infId) || 'Unknown',
+                            image_url: img.image_url,
+                            image_type: img.image_type as any,
+                            uploaded_at: img.uploaded_at
+                        });
+                    });
+
+                    // POPULATE MISSING DEFAULT REFERENCE IMAGES
+                    // For custom influencers without explicit default_reference_images in DB,
+                    // we auto-populate from their uploaded reference images.
+                    localInfluencers.forEach(inf => {
+                        if (!inf.defaultReferenceImages || inf.defaultReferenceImages.length === 0) {
+                            const uploadedImages = referenceImagesByInfluencer[inf.id] || [];
+                            if (uploadedImages.length > 0) {
+                                // Prioritize 'face' type, then others
+                                const sortedImages = [...uploadedImages].sort((a, b) => {
+                                    if (a.image_type === 'face' && b.image_type !== 'face') return -1;
+                                    if (a.image_type !== 'face' && b.image_type === 'face') return 1;
+                                    return 0;
+                                });
+
+                                // Take up to 4 images
+                                const fallbackImages = sortedImages.slice(0, 4).map(img => img.image_url);
+                                console.log(`[loadUserData] Auto-populating reference images for ${inf.name}:`, fallbackImages.length);
+                                inf.defaultReferenceImages = fallbackImages;
+                            }
+                        }
+                    });
+
+                    const localGenerations: Generation[] = (generationsResult.data || []).map((gen: any) => ({
+                        id: gen.id,
+                        influencer_id: gen.influencer_id,
+                        influencer_name: influencerMap.get(gen.influencer_id) || 'Unknown',
+                        prompt: gen.prompt,
+                        parameters: gen.parameters,
+                        image_urls: gen.image_urls,
+                        is_series: gen.is_series,
+                        series_id: gen.series_id,
+                        content_mode: gen.content_mode || 'social',
+                        tags: gen.tags || [],
+                        caption: gen.caption,
+                        hashtags: gen.hashtags || [],
+                        created_at: gen.created_at,
+                    }));
+
+                    // Map trash items from Supabase to local TrashItem format
+                    const localTrash: TrashItem[] = (trashResult.data || []).map((item: any) => ({
+                        id: item.id,
+                        originalGenerationId: item.original_generation_id,
+                        imageUrl: item.image_url || undefined,
+                        imageIndex: item.image_index ?? undefined,
+                        type: item.item_type as 'single_image' | 'full_generation',
+                        generationData: item.generation_data as Generation | undefined,
+                        deletedAt: item.deleted_at
+                    }));
+
+                    // 4. Update Store
+                    set((state) => ({
+                        influencers: localInfluencers,
+                        generations: localGenerations,
+                        trash: localTrash, // Load trash from Supabase
+                        referenceImagesByInfluencer: referenceImagesByInfluencer,
+                        currentGenerationId: localGenerations.length > 0 ? localGenerations[0].id : null,
+
+                        // Update custom prompts from influencers data
+                        customBasePrompts: {
+                            ...state.customBasePrompts,
+                            ...Object.fromEntries((localInfluencers || []).map((i: any) => [i.id, i.basePrompt || '']))
+                        },
+                        influencerPrompts: {
+                            ...state.influencerPrompts,
+                            ...Object.fromEntries((localInfluencers || []).map((i: any) => [i.id, i.llmSystemPrompt || '']))
+                        },
+
+                        // Update current reference images if an influencer is selected
+                        referenceImages: state.selectedInfluencer ?
+                            (referenceImagesByInfluencer[state.selectedInfluencer.id] ||
+                                state.referenceImages) : state.referenceImages,
+                    }));
+
+                    // RECONCILIATION: Check if selectedInfluencer needs an update (ID or Slug)
+                    const currentSelected = get().selectedInfluencer;
+
+                    // Match by slug or name if ID is the initial constant one or just to be safe
+                    const matchingInfluencer = localInfluencers.find(inf =>
+                        inf.slug === currentSelected.slug || inf.name === currentSelected.name
+                    );
+
+                    if (matchingInfluencer) {
+                        // Even if ID matches, updating to the server data ensures all fields (avatar, etc) are fresh
+                        console.log(`[loadUserData] Syncing selected influencer: ${matchingInfluencer.name} (${matchingInfluencer.id})`);
+                        set({ selectedInfluencer: matchingInfluencer });
+                    } else if (localInfluencers.length > 0) {
+                        console.warn('[loadUserData] Selected influencer not found in synced list. Resetting to first available.');
+                        set({ selectedInfluencer: localInfluencers[0] });
+                    }
+
+                    console.log(`[loadUserData] Sync complete. Loaded ${localGenerations.length} generations and ${Object.values(referenceImagesByInfluencer).flat().length} reference images.`);
+                    return true;
+                } catch (err) {
+                    console.error('[loadUserData] Failed to sync:', err);
+                    return false;
+                }
+            },
+
             // Influencer Status
             influencerStatus: {},
             toggleInfluencerStatus: (id) => set((state) => ({
@@ -564,6 +803,40 @@ export const useGenerationStore = create<GenerationStore>()(
                 const state = get();
                 const trashId = uuidv4();
 
+                // Helper to sync trash item to Supabase
+                const syncTrashToDb = async (trashItem: TrashItem, deleteGeneration: boolean) => {
+                    try {
+                        // Get current user ID
+                        const { data: { session } } = await supabaseAuth.auth.getSession();
+                        const userId = session?.user?.id;
+                        if (!userId) {
+                            console.warn('[moveToTrash] No user session, skipping DB sync');
+                            return;
+                        }
+
+                        // Insert into trash table
+                        await supabase.from('trash').insert({
+                            id: trashItem.id,
+                            user_id: userId,
+                            original_generation_id: trashItem.originalGenerationId,
+                            image_url: trashItem.imageUrl || null,
+                            image_index: trashItem.imageIndex ?? null,
+                            item_type: trashItem.type,
+                            generation_data: trashItem.generationData,
+                            deleted_at: trashItem.deletedAt
+                        });
+
+                        // Delete from generations table if full delete
+                        if (deleteGeneration) {
+                            await supabase.from('generations').delete().eq('id', generationId);
+                        }
+
+                        console.log('[moveToTrash] Synced to Supabase:', trashItem.id);
+                    } catch (err) {
+                        console.error('[moveToTrash] Failed to sync to Supabase:', err);
+                    }
+                };
+
                 // Case 1: Deleting a single image from a series
                 if (imageUrl && index !== undefined) {
                     const generation = state.generations.find(g => g.id === generationId);
@@ -583,6 +856,8 @@ export const useGenerationStore = create<GenerationStore>()(
                             trash: [trashItem, ...state.trash],
                             generations: state.generations.filter(g => g.id !== generationId)
                         });
+                        // Sync to DB: insert to trash + delete from generations
+                        syncTrashToDb(trashItem, true);
                     } else {
                         // Partial delete
                         const trashItem: TrashItem = {
@@ -603,8 +878,9 @@ export const useGenerationStore = create<GenerationStore>()(
                                 g.id === generationId ? { ...g, image_urls: newImages } : g
                             )
                         });
-                        // Sync DB (best effort, async)
+                        // Sync DB: update generations + insert to trash
                         supabase.from('generations').update({ image_urls: newImages }).eq('id', generationId).then();
+                        syncTrashToDb(trashItem, false);
                     }
                 }
                 // Case 2: Deleting full generation (from grid or whatever)
@@ -624,11 +900,8 @@ export const useGenerationStore = create<GenerationStore>()(
                         trash: [trashItem, ...state.trash],
                         generations: state.generations.filter(g => g.id !== generationId)
                     });
-                    // Sync DB (marked as deleted or actually deleted?)
-                    // For now we don't delete from DB immediately if we want Undo. 
-                    // But if we want true Trash, we probably should leave it in DB or move to a trash table.
-                    // IMPORTANT: To keep it simple, we will NOT delete from DB yet, or we assume DB sync is largely one-way or manual.
-                    // Basically rely on local store update for UI, and assume eventually we handle DB cleanup if permanent delete.
+                    // Sync to DB: insert to trash + delete from generations
+                    syncTrashToDb(trashItem, true);
                 }
 
                 return trashId;
@@ -645,8 +918,9 @@ export const useGenerationStore = create<GenerationStore>()(
                         generations: [item.generationData, ...state.generations],
                         trash: state.trash.filter(t => t.id !== trashId)
                     });
-                    // Sync DB: Upsert back
+                    // Sync DB: Upsert back to generations + delete from trash
                     supabase.from('generations').upsert(item.generationData).then();
+                    supabase.from('trash').delete().eq('id', trashId).then();
 
                 } else if (item.type === 'single_image' && item.imageUrl) {
                     // Restore single image to existing series
@@ -667,8 +941,9 @@ export const useGenerationStore = create<GenerationStore>()(
                             ),
                             trash: state.trash.filter(t => t.id !== trashId)
                         });
-                        // Sync DB
+                        // Sync DB: update generations + delete from trash
                         supabase.from('generations').update({ image_urls: newImages }).eq('id', item.originalGenerationId).then();
+                        supabase.from('trash').delete().eq('id', trashId).then();
 
                     } else {
                         // Original generation is gone? Recreate it as a new generation with just this image? 
@@ -687,25 +962,15 @@ export const useGenerationStore = create<GenerationStore>()(
 
                 set({ trash: state.trash.filter(t => t.id !== trashId) });
 
-                // Determine if we need to do DB cleanup
-                if (item.type === 'full_generation' || (item.originalGenerationId && item.type === 'single_image')) {
-                    // Since we didn't delete from keys in `generations`, we probably didn't delete from DB in `moveToTrash` (logic above).
-                    // But wait, `moveToTrash` modifies `generations` state.
-                    // If we want PERMANENT delete, we should ensure it's gone from DB.
-                    if (item.type === 'full_generation' && item.generationData) {
-                        supabase.from('generations').delete().eq('id', item.generationData.id).then();
-                    }
-                    // For single image, the DB update happened in `moveToTrash`. Nothing more to do.
-                }
+                // Delete from trash table in Supabase
+                supabase.from('trash').delete().eq('id', trashId).then();
             },
 
             emptyTrash: () => {
                 const state = get();
-                // Permanently delete all full generations in trash from DB
+                // Delete all items from trash table in Supabase
                 state.trash.forEach(item => {
-                    if (item.type === 'full_generation' && item.generationData) {
-                        supabase.from('generations').delete().eq('id', item.generationData.id).then();
-                    }
+                    supabase.from('trash').delete().eq('id', item.id).then();
                 });
                 set({ trash: [] });
             },

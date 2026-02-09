@@ -1,6 +1,7 @@
 // API Route for image generation via Wavespeed
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserApiKey } from '@/lib/getUserApiKey';
 
 // Wavespeed API Configuration
 const WAVESPEED_API_BASE = 'https://api.wavespeed.ai/api/v3';
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.WAVESPEED_API_KEY;
+        // Get user's API key (falls back to env var if not configured)
+        const apiKey = await getUserApiKey();
 
         // For development/demo: return mock images if no API key
         if (!apiKey || apiKey === 'your_wavespeed_api_key') {
@@ -54,6 +56,8 @@ export async function POST(request: NextRequest) {
         // Construct request body based on model type
         let requestBody: any = {
             prompt: body.prompt,
+            negative_prompt: body.negative_prompt,
+            image_strength: body.image_strength, // Control preservation of source image (0.0 - 1.0)
             enable_sync_mode: true,
         };
 

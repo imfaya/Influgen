@@ -6,16 +6,19 @@ export type ContentMode = 'social' | 'sensual' | 'porn';
 export interface Influencer {
     id: string;
     name: string;
+    slug: string;
     description: string;
     thumbnail: string;
     avatar: string;
     basePrompt: string;
     defaultReferenceImages?: string[];
     llmSystemPrompt?: string;
+    instagram_account_id?: string;
 }
 
 export interface PendingGeneration {
     id: string;
+    influencer_id: string;
     prompt: string;
     contentMode: ContentMode;
     startedAt: string;
@@ -52,10 +55,12 @@ export interface GenerationRequest {
     aspect_ratio: AspectRatio;
     resolution: string;
     reference_images?: string[];
+    image_strength?: number;
 }
 
 export interface Generation {
     id: string;
+    influencer_id: string;
     influencer_name: string;
     prompt: string;
     parameters: GenerationParameters;
@@ -110,4 +115,36 @@ export interface Post {
     status: 'generating' | 'draft' | 'ready' | 'posted';
     created_at: string;
     scheduled_at?: string;
+}
+
+// Instagram Integration Types
+export interface InstagramAccount {
+    id: string;
+    user_id: string;
+    instagram_user_id: string;
+    username: string;
+    // We strictly do NOT expose access_token to the frontend for security, 
+    // unless absolutely necessary and short-lived.
+    token_expires_at?: string;
+    created_at: string;
+}
+
+export type ScheduledPostStatus = 'pending' | 'published' | 'failed';
+
+export interface ScheduledPost {
+    id: string;
+    user_id: string;
+    instagram_account_id: string;
+    influencer_id?: string;
+    content_mode: ContentMode;
+    image_urls: string[];
+    caption: string;
+    scheduled_time: string;
+    status: ScheduledPostStatus;
+    instagram_media_id?: string;
+    instagram_post_id?: string;
+    error_message?: string;
+    result_details?: any; // JSONB
+    created_at: string;
+    updated_at: string;
 }

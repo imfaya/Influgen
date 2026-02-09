@@ -1,0 +1,369 @@
+2026-02-07T18:05:21.261Z: Starting Instagram Token Exchange 
+---
+2026-02-07T18:05:22.031Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778263521,
+    "expires_at": 1775669963,
+    "is_valid": true,
+    "issued_at": 1770487522,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list"
+      },
+      {
+        "scope": "instagram_basic"
+      },
+      {
+        "scope": "instagram_content_publish"
+      },
+      {
+        "scope": "pages_read_engagement"
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T18:05:22.214Z: Pages Found []
+---
+2026-02-07T18:05:22.214Z: No Page with IG found 
+---
+2026-02-07T18:10:30.009Z: Starting Instagram Token Exchange 
+---
+2026-02-07T18:10:30.836Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778263830,
+    "expires_at": 1775671829,
+    "is_valid": true,
+    "issued_at": 1770487831,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list",
+        "target_ids": [
+          "970390846161099"
+        ]
+      },
+      {
+        "scope": "instagram_basic",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "instagram_content_publish",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "pages_read_engagement",
+        "target_ids": [
+          "970390846161099"
+        ]
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T18:10:31.053Z: Pages Found []
+---
+2026-02-07T18:10:31.053Z: No Page with IG found 
+---
+2026-02-07T18:12:15.787Z: Starting Instagram Token Exchange 
+---
+2026-02-07T18:12:16.660Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778263935,
+    "expires_at": 1775671829,
+    "is_valid": true,
+    "issued_at": 1770487936,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list",
+        "target_ids": [
+          "970390846161099"
+        ]
+      },
+      {
+        "scope": "instagram_basic",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "instagram_content_publish",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "pages_read_engagement",
+        "target_ids": [
+          "970390846161099"
+        ]
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T18:12:16.838Z: Pages Found []
+---
+2026-02-07T18:12:16.838Z: No Page with IG found 
+---
+2026-02-07T18:13:32.785Z: Starting Instagram Token Exchange 
+---
+2026-02-07T18:13:32.960Z: FB OAuth Token Error {
+  "message": "This authorization code has expired.",
+  "type": "OAuthException",
+  "code": 100,
+  "error_subcode": 36007,
+  "fbtrace_id": "AW-NqCAxD6HJqexm4pldsoL"
+}
+---
+2026-02-07T18:13:32.960Z: Exception Caught "FB Error: This authorization code has expired."
+---
+2026-02-07T18:13:40.774Z: Starting Instagram Token Exchange 
+---
+2026-02-07T18:13:41.606Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778264020,
+    "expires_at": 1775671829,
+    "is_valid": true,
+    "issued_at": 1770488021,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list",
+        "target_ids": [
+          "970390846161099"
+        ]
+      },
+      {
+        "scope": "instagram_basic",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "instagram_content_publish",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "pages_read_engagement",
+        "target_ids": [
+          "970390846161099"
+        ]
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T18:13:41.780Z: Using Strategy B: Fetching valid pages from granular_scopes 
+---
+2026-02-07T18:13:42.330Z: Pages Found [
+  {
+    "id": "970390846161099",
+    "name": "Lyra",
+    "has_ig": true,
+    "ig_details": {
+      "id": "17841469409747283",
+      "username": "lyra.chenet",
+      "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+    }
+  }
+]
+---
+2026-02-07T18:13:42.330Z: Success {
+  "igAccount": {
+    "id": "17841469409747283",
+    "username": "lyra.chenet",
+    "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+  }
+}
+---
+2026-02-07T19:51:28.531Z: Starting Instagram Token Exchange 
+---
+2026-02-07T19:51:29.675Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778269888,
+    "expires_at": 0,
+    "is_valid": true,
+    "issued_at": 1770493890,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list",
+        "target_ids": [
+          "970390846161099"
+        ]
+      },
+      {
+        "scope": "instagram_basic",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "instagram_content_publish",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "pages_read_engagement",
+        "target_ids": [
+          "970390846161099"
+        ]
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T19:51:29.853Z: Using Strategy B: Fetching valid pages from granular_scopes 
+---
+2026-02-07T19:51:30.204Z: Pages Found [
+  {
+    "id": "970390846161099",
+    "name": "Lyra",
+    "has_ig": true,
+    "ig_details": {
+      "id": "17841469409747283",
+      "username": "lyra.chenet",
+      "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+    }
+  }
+]
+---
+2026-02-07T19:51:30.205Z: Success {
+  "igAccount": {
+    "id": "17841469409747283",
+    "username": "lyra.chenet",
+    "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+  }
+}
+---
+2026-02-07T19:59:33.100Z: Starting Instagram Token Exchange 
+---
+2026-02-07T19:59:33.912Z: Token Debug Data {
+  "data": {
+    "app_id": "895072483240566",
+    "type": "USER",
+    "application": "InfluGen Scheduler",
+    "data_access_expires_at": 1778270373,
+    "expires_at": 0,
+    "is_valid": true,
+    "issued_at": 1770494374,
+    "scopes": [
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "pages_show_list",
+        "target_ids": [
+          "970390846161099"
+        ]
+      },
+      {
+        "scope": "instagram_basic",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "instagram_content_publish",
+        "target_ids": [
+          "17841469409747283"
+        ]
+      },
+      {
+        "scope": "pages_read_engagement",
+        "target_ids": [
+          "970390846161099"
+        ]
+      }
+    ],
+    "user_id": "25891924687125312"
+  }
+}
+---
+2026-02-07T19:59:34.266Z: Using Strategy B: Fetching valid pages from granular_scopes 
+---
+2026-02-07T19:59:34.566Z: Pages Found [
+  {
+    "id": "970390846161099",
+    "name": "Lyra",
+    "has_ig": true,
+    "ig_details": {
+      "id": "17841469409747283",
+      "username": "lyra.chenet",
+      "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+    }
+  }
+]
+---
+2026-02-07T19:59:34.567Z: Success {
+  "igAccount": {
+    "id": "17841469409747283",
+    "username": "lyra.chenet",
+    "profile_picture_url": "https://scontent.fbod1-1.fna.fbcdn.net/v/t51.2885-15/465243767_1982628042199964_6221201014160602974_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UYUzaHHfNcIQ7kNvwFG0vC0&_nc_oc=AdlY9MCZRWk91ALnZoYfs2oNd9cZLxZi9XCRJopArwWsNhU3-_tCdjRRS6dMIio7I9w&_nc_zt=23&_nc_ht=scontent.fbod1-1.fna&edm=AJdBtusEAAAA&oh=00_Afv08WRgHaL3m-XRk4srRLW8ukmCDcUvXagwdyfC4W9x_w&oe=698D515B"
+  }
+}
+---

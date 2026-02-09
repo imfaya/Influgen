@@ -11,7 +11,7 @@ import { useGeneration } from '@/hooks/useGeneration';
 import { useGenerationStore } from '@/store';
 import { HistoryThumbnail } from './HistoryThumbnail';
 import { ImageDetailModal } from './ImageDetailModal';
-import { INFLUENCERS } from '@/lib/constants';
+import { SchedulePostModal } from '@/components/scheduler/SchedulePostModal';
 import { ContentMode, Generation } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -34,12 +34,14 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
     const deleteGeneration = useHistory().deleteGeneration;
     const reusePrompt = useHistory().reusePrompt;
     const downloadImage = useHistory().downloadImage;
-    const { continueSeries, boostRealism } = useGeneration();
-    const selectedInfluencerName = useGenerationStore(useCallback(state => state.selectedInfluencer.name, []));
+    const { continueSeries, boostRealism, boostRealismPremium } = useGeneration();
+    const selectedInfluencerId = useGenerationStore(useCallback(state => state.selectedInfluencer.id, []));
     const trash = useGenerationStore(useCallback(state => state.trash, []));
+    const influencers = useGenerationStore(useCallback(state => state.influencers, []));
     const getCustomBasePrompt = useGenerationStore(useCallback(state => state.getCustomBasePrompt, []));
 
     const [selectedImage, setSelectedImage] = useState<FlattenedImage | null>(null);
+    const [schedulingGeneration, setSchedulingGeneration] = useState<Generation | null>(null);
     const [renderLimit, setRenderLimit] = useState(60);
 
     const isSensual = filterMode === 'sensual';
@@ -56,7 +58,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
                 const item = trash[i];
                 if (item.type === 'full_generation' && item.generationData) {
                     const gen = item.generationData;
-                    if (gen.influencer_name === selectedInfluencerName && (gen.content_mode || 'social') === activeMode) {
+                    if (gen.influencer_id === selectedInfluencerId && (gen.content_mode || 'social') === activeMode) {
                         const urls = gen.image_urls;
                         for (let j = urls.length - 1; j >= 0; j--) {
                             items.push({ imageUrl: urls[j], generation: gen, imageIndex: j });
@@ -65,7 +67,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
                     }
                 } else if (item.type === 'single_image' && item.imageUrl) {
                     const gen = generations.find(g => g.id === item.originalGenerationId) || item.generationData;
-                    if (gen && gen.influencer_name === selectedInfluencerName && (gen.content_mode || 'social') === activeMode) {
+                    if (gen && gen.influencer_id === selectedInfluencerId && (gen.content_mode || 'social') === activeMode) {
                         items.push({ imageUrl: item.imageUrl, generation: gen, imageIndex: item.imageIndex || 0 });
                     }
                 }
@@ -76,8 +78,8 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
             for (let i = 0; i < generations.length; i++) {
                 const gen = generations[i];
 
-                // Fast path filters
-                if (gen.influencer_name !== selectedInfluencerName) continue;
+                // Fast path filters - use ID for reliability
+                if (gen.influencer_id !== selectedInfluencerId) continue;
                 if ((gen.content_mode || 'social') !== activeMode) continue;
 
                 const isSeries = gen.is_series === true || (gen.image_urls && gen.image_urls.length > (gen.parameters?.numOutputs || 8));
@@ -117,7 +119,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
             flattenedImages: more ? items.slice(0, renderLimit) : items,
             hasMore: more
         };
-    }, [generations, trash, filterMode, historyFilter, isTrashView, selectedInfluencerName, renderLimit]);
+    }, [generations, trash, filterMode, historyFilter, isTrashView, selectedInfluencerId, renderLimit]);
 
     // Get images in the same series as the selected image
     // Get images in the same series as the selected image - REFRESHED from store
@@ -140,7 +142,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
         const generation = selectedImage.generation;
         const fullPrompt = generation.prompt;
 
-        const influencer = INFLUENCERS.find(i => i.name === generation.influencer_name);
+        const influencer = influencers.find(i => i.name === generation.influencer_name);
         if (!influencer) return fullPrompt;
 
         const basePrompt = getCustomBasePrompt(influencer.id) || influencer.basePrompt;
@@ -156,7 +158,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
         }
 
         return fullPrompt;
-    }, [selectedImage, getCustomBasePrompt]);
+    }, [selectedImage, getCustomBasePrompt, influencers]);
 
     // Memoized handlers to prevent child re-renders
     const handleSeriesPrev = useCallback(() => {
@@ -186,8 +188,13 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
 
     const handleRealismBoost = useCallback(() => {
         if (!selectedImage) return;
-        boostRealism(selectedImage.imageUrl);
+        boostRealism(selectedImage.imageUrl, selectedImage.generation.id);
     }, [selectedImage, boostRealism]);
+
+    const handleRealismBoostPremium = useCallback(() => {
+        if (!selectedImage) return;
+        boostRealismPremium(selectedImage.imageUrl, selectedImage.generation.id);
+    }, [selectedImage, boostRealismPremium]);
 
     const handleCloseModal = useCallback(() => {
         setSelectedImage(null);
@@ -215,6 +222,11 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
         setSelectedImage(item);
     }, []);
 
+    const handleSchedule = useCallback((e: React.MouseEvent, generation: Generation) => {
+        e.stopPropagation();
+        setSchedulingGeneration(generation);
+    }, []);
+
     const handleSeriesSelect = useCallback((index: number) => {
         if (!selectedImage || !activeGeneration) return;
         if (index < 0 || index >= activeGeneration.image_urls.length) return;
@@ -228,6 +240,57 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
             generation: activeGeneration
         });
     }, [selectedImage, activeGeneration]);
+
+    // Global Navigation Handlers
+    const handleGlobalPrev = useCallback(() => {
+        if (!selectedImage) return;
+
+        // Find the First Index of the CURRENT generation in the flattened list
+        // (Even if we are on Image 2 and it's not in the list, searching by ID will find Image 0 which IS in the list)
+        const firstCurrentIndex = flattenedImages.findIndex(
+            item => item.generation.id === selectedImage.generation.id
+        );
+
+        if (firstCurrentIndex > 0) {
+            // The item immediately before the current generation belongs to the Previous Generation
+            const prevGenItem = flattenedImages[firstCurrentIndex - 1];
+            const prevGenId = prevGenItem.generation.id;
+
+            // Now find the START of that previous generation
+            const firstPrevIndex = flattenedImages.findIndex(item => item.generation.id === prevGenId);
+
+            if (firstPrevIndex !== -1) {
+                setSelectedImage(flattenedImages[firstPrevIndex]);
+            } else {
+                // Fallback (shouldn't happen if list is consistent)
+                setSelectedImage(prevGenItem);
+            }
+        }
+    }, [selectedImage, flattenedImages]);
+
+    const handleGlobalNext = useCallback(() => {
+        if (!selectedImage) return;
+
+        // Find the index of the first item that belongs to a DIFFERENT (subsequent) generation
+        let foundCurrentGen = false;
+        let nextGenIndex = -1;
+
+        for (let i = 0; i < flattenedImages.length; i++) {
+            if (flattenedImages[i].generation.id === selectedImage.generation.id) {
+                foundCurrentGen = true;
+            } else if (foundCurrentGen) {
+                // We found the current gen, and now we found a different one!
+                nextGenIndex = i;
+                break;
+            }
+        }
+
+        if (nextGenIndex !== -1) {
+            setSelectedImage(flattenedImages[nextGenIndex]);
+        } else if (foundCurrentGen && hasMore) {
+            setRenderLimit(prev => prev + 60);
+        }
+    }, [selectedImage, flattenedImages, hasMore]);
 
     if (flattenedImages.length === 0) {
         return (
@@ -275,6 +338,7 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
                         isSeriesOrigin={item.generation.is_series && item.imageIndex === 0}
                         isStealIt={item.generation.tags?.includes('steal-it')}
                         onClick={() => handleThumbnailClick(item)}
+                        onSchedule={(e) => handleSchedule(e, item.generation)}
                         isSensual={isSensual}
                         isPorn={isPorn}
                     />
@@ -333,10 +397,25 @@ export const HistoryGrid = memo(function HistoryGrid({ filterMode, historyFilter
                 onContinueSeries={handleContinueSeries}
                 onDelete={handleDelete}
                 onRealismBoost={handleRealismBoost}
+                onRealismBoostPremium={handleRealismBoostPremium}
                 onSeriesSelect={handleSeriesSelect}
                 userPromptOnly={userPromptOnly}
                 isSensual={isSensual}
                 isTrashMode={isTrashView}
+                onGlobalPrev={handleGlobalPrev}
+                onGlobalNext={handleGlobalNext}
+            />
+
+            {/* Schedule Post Modal - Quick Action */}
+            <SchedulePostModal
+                isOpen={!!schedulingGeneration}
+                onClose={() => setSchedulingGeneration(null)}
+                images={schedulingGeneration?.image_urls || []}
+                defaultCaption={schedulingGeneration ? (
+                    (schedulingGeneration.caption || '') +
+                    ((schedulingGeneration.hashtags && schedulingGeneration.hashtags.length > 0) ? '\n\n' + schedulingGeneration.hashtags.map(h => `#${h}`).join(' ') : '')
+                ) : ''}
+                influencerId={schedulingGeneration?.influencer_id || selectedInfluencerId}
             />
         </div>
     );

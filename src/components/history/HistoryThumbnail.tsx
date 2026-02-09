@@ -15,6 +15,7 @@ interface HistoryThumbnailProps {
     isSeries: boolean;
     isSeriesOrigin?: boolean;
     onClick: () => void;
+    onSchedule?: (e: React.MouseEvent) => void;
     isSensual?: boolean;
     isPorn?: boolean;
     isStealIt?: boolean;
@@ -27,6 +28,7 @@ export const HistoryThumbnail = memo(function HistoryThumbnail({
     isSeries,
     isSeriesOrigin = false,
     onClick,
+    onSchedule,
     isSensual = false,
     isPorn = false,
     isStealIt = false
@@ -141,26 +143,46 @@ export const HistoryThumbnail = memo(function HistoryThumbnail({
 
             {/* Hover zoom icon - center of image (only when not in selection mode) - CSS controlled */}
             {!isSelectionMode && (
-                <div className="thumbnail-zoom-icon absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className={cn(
-                        "p-3 rounded-full",
-                        "bg-white/20 border border-white/30"
-                    )}>
-                        <svg
-                            className="w-6 h-6 text-white"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"
-                            />
-                        </svg>
+                <>
+                    <div className="thumbnail-zoom-icon absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className={cn(
+                            "p-3 rounded-full",
+                            "bg-white/20 border border-white/30 backdrop-blur-sm"
+                        )}>
+                            <svg
+                                className="w-6 h-6 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"
+                                />
+                            </svg>
+                        </div>
                     </div>
-                </div>
+
+                    {/* Quick Schedule Button - Top Left */}
+                    {onSchedule && (
+                        <button
+                            onClick={onSchedule}
+                            className={cn(
+                                "thumbnail-action-btn absolute top-2 left-2 p-2 rounded-full",
+                                "bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10",
+                                "text-white transition-all duration-200 z-20",
+                                "opacity-0 group-hover:opacity-100 transform translate-y-[-10px] group-hover:translate-y-0"
+                            )}
+                            title="Schedule Post"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </button>
+                    )}
+                </>
             )}
         </div>
     );
@@ -174,6 +196,6 @@ export const HistoryThumbnail = memo(function HistoryThumbnail({
         prevProps.isSensual === nextProps.isSensual &&
         prevProps.isPorn === nextProps.isPorn &&
         prevProps.isStealIt === nextProps.isStealIt
-        // onClick is intentionally excluded - it changes on every parent render
+        // onClick and onSchedule are intentionally excluded - they change on every parent render
     );
 });

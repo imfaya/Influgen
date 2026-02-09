@@ -262,7 +262,7 @@
 
 /* Light mode background */
 :root:not(.dark) .sensual-mode {
-  background: linear-gradient(135deg, #fdf2f4 0%, #fce8eb 50%, #f9e0e5 100%) !important;
+  /* background: linear-gradient(135deg, #fdf2f4 0%, #fce8eb 50%, #f9e0e5 100%) !important; */
 }
 
 /* Light mode - Content cards */
@@ -295,7 +295,7 @@
 
 /* Dark mode background */
 .dark .sensual-mode {
-  background: linear-gradient(135deg, #1a0a0f 0%, #0f0f0f 50%, #0f0a15 100%) !important;
+  /* background: linear-gradient(135deg, #1a0a0f 0%, #0f0f0f 50%, #0f0a15 100%) !important; */
 }
 
 /* Dark mode - Content cards */
@@ -1114,7 +1114,7 @@
 
 /* Light mode background */
 :root:not(.dark) .porn-mode {
-  background: linear-gradient(135deg, #FFEFD5 0%, #FFF8E7 50%, #FFFFF0 100%) !important;
+  /* background: linear-gradient(135deg, #FFEFD5 0%, #FFF8E7 50%, #FFFFF0 100%) !important; */
 }
 
 /* Light mode - Content cards */
@@ -1143,7 +1143,7 @@
 
 /* Dark mode background */
 .dark .porn-mode {
-  background: linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #111111 100%) !important;
+  /* background: linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #111111 100%) !important; */
 }
 
 /* Dark mode - Content cards */

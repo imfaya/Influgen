@@ -12,7 +12,7 @@ import { useGenerationStore } from '@/store';
 import { useGeneration } from '@/hooks/useGeneration';
 import { ImageDetailModal } from '@/components/history/ImageDetailModal';
 import { useHistory } from '@/hooks/useHistory';
-import { INFLUENCERS } from '@/lib/constants';
+// Influencers are now loaded from the store, not the constant
 import { Generation, PendingGeneration } from '@/types';
 import { cn } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/imageUtils';
@@ -31,6 +31,7 @@ const GenerationCard = memo(function GenerationCard({
     isSensual,
     isPorn,
     hasPendingGenerations,
+    influencer,
     onClick
 }: {
     generation: Generation;
@@ -39,13 +40,13 @@ const GenerationCard = memo(function GenerationCard({
     isSensual: boolean;
     isPorn: boolean;
     hasPendingGenerations: boolean;
+    influencer: { name: string; thumbnail: string } | undefined;
     onClick: () => void;
 }) {
     const [imageLoaded, setImageLoaded] = useState(false);
     const firstImage = generation.image_urls[0];
     const hasMultipleImages = generation.image_urls.length > 1;
     const isStealIt = generation.tags?.includes('steal-it');
-    const influencer = INFLUENCERS.find(i => i.name === generation.influencer_name);
 
     return (
         <div
@@ -90,23 +91,27 @@ const GenerationCard = memo(function GenerationCard({
 
             {/* Top bar with influencer info and series badge */}
             <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-start">
-                {/* Influencer avatar + name - only on hover */}
-                {influencer && (
-                    <div className="flex items-center gap-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                {/* Influencer avatar + name - always visible, with fallback */}
+                <div className="flex items-center gap-2.5">
+                    {influencer?.thumbnail ? (
                         <img
                             src={influencer.thumbnail}
                             alt={influencer.name}
                             className="w-8 h-8 rounded-full object-cover ring-2 ring-white/20"
                         />
-                        <span className="text-sm font-light text-white/80 tracking-wide">
-                            {influencer.name}
-                        </span>
-                    </div>
-                )}
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 ring-2 ring-white/20 flex items-center justify-center text-xs font-bold text-white">
+                            {(influencer?.name || generation.influencer_name || '?').charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                    <span className="text-sm font-light text-white/80 tracking-wide">
+                        {influencer?.name || generation.influencer_name || 'Unknown'}
+                    </span>
+                </div>
 
                 {hasMultipleImages && !isStealIt && (
                     <div className={cn(
-                        "px-3 py-1.5 rounded-full text-xs font-medium tracking-wider",
+                        "ml-auto px-3 py-1.5 rounded-full text-xs font-medium tracking-wider",
                         "bg-black/50 backdrop-blur-sm border",
                         isSensual
                             ? "border-rose-500/30 text-rose-300"
@@ -120,7 +125,7 @@ const GenerationCard = memo(function GenerationCard({
                 )}
                 {isStealIt && (
                     <div className={cn(
-                        "px-3 py-1.5 rounded-full text-xs font-bold tracking-widest flex items-center gap-1.5",
+                        "ml-auto px-3 py-1.5 rounded-full text-xs font-bold tracking-widest flex items-center gap-1.5",
                         "bg-gradient-to-r from-red-600/80 to-red-800/80 backdrop-blur-sm border border-red-400/50 text-white shadow-lg shadow-red-900/40"
                     )}>
                         <Sparkles className="w-3 h-3 fill-current" />
@@ -191,16 +196,19 @@ interface PendingBatchGroup {
     batchId: string;
     count: number;
     pendingIds: string[];
+    influencerIds: string[];
 }
 
 const PendingBatchCard = memo(function PendingBatchCard({
     group,
     isSensual,
-    isPorn
+    isPorn,
+    influencers
 }: {
     group: PendingBatchGroup;
     isSensual: boolean;
     isPorn: boolean;
+    influencers: any[];
 }) {
     return (
         <div
@@ -228,6 +236,26 @@ const PendingBatchCard = memo(function PendingBatchCard({
 
             {/* Content */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10">
+
+                {/* Influencer Avatars Stack (Top Left) */}
+                {group.influencerIds && group.influencerIds.length > 0 && (
+                    <div className="absolute top-3 left-3 flex -space-x-2">
+                        {group.influencerIds.map((id, idx) => {
+                            const inf = influencers.find(i => i.id === id);
+                            if (!inf) return null;
+                            return (
+                                <img
+                                    key={id}
+                                    src={inf.thumbnail || inf.avatar}
+                                    alt={inf.name}
+                                    className="w-10 h-10 rounded-full ring-2 ring-black/50 object-cover"
+                                    style={{ zIndex: 10 - idx }}
+                                    title={inf.name}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Visual Icon */}
                 <div className={cn(
@@ -417,7 +445,7 @@ function formatTimeAgo(date: Date) {
 }
 
 // Simple pending card for single generations without source
-const PendingCard = memo(({ pending, isPorn, isSensual }: { pending: PendingGeneration, isPorn: boolean, isSensual: boolean }) => {
+const PendingCard = memo(({ pending, isPorn, isSensual, influencer }: { pending: PendingGeneration, isPorn: boolean, isSensual: boolean, influencer?: any }) => {
 
     const isStealIt = pending.tags?.includes('steal-it');
 
@@ -493,6 +521,15 @@ const PendingCard = memo(({ pending, isPorn, isSensual }: { pending: PendingGene
                 )}>
                     {isStealIt ? "Stealing Reality..." : "Creation in progress..."}
                 </p>
+                {influencer && (
+                    <div className="flex items-center gap-2 mt-1 opacity-70">
+                        <img
+                            src={influencer.thumbnail || influencer.avatar}
+                            className="w-5 h-5 rounded-full"
+                        />
+                        <span className={cn("text-xs", textColor)}>{influencer.name}</span>
+                    </div>
+                )}
             </div>
 
             {/* Prompt preview */}
@@ -515,9 +552,11 @@ export function CentralHistoryDisplay() {
     const generations = useGenerationStore(useCallback(state => state.generations, []));
     const contentMode = useGenerationStore(useCallback(state => state.contentMode, []));
     const pendingGenerations = useGenerationStore(useCallback(state => state.pendingGenerations, []));
+    const influencers = useGenerationStore(useCallback(state => state.influencers, []));
+    const selectedInfluencer = useGenerationStore(useCallback(state => state.selectedInfluencer, []));
     const getCustomBasePrompt = useGenerationStore(useCallback(state => state.getCustomBasePrompt, []));
 
-    const { continueSeries, boostRealism } = useGeneration();
+    const { continueSeries, boostRealism, boostRealismPremium } = useGeneration();
     const { deleteGeneration, reusePrompt, downloadImage } = useHistory();
     const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
     const [renderLimit, setRenderLimit] = useState(20);
@@ -545,7 +584,7 @@ export function CentralHistoryDisplay() {
     // Helper: Extract user prompt only (without base prompt) - memoized
     const extractUserPrompt = useCallback((generation: Generation): string => {
         const fullPrompt = generation.prompt;
-        const influencer = INFLUENCERS.find(i => i.name === generation.influencer_name);
+        const influencer = influencers.find(i => i.name === generation.influencer_name);
         if (!influencer) return fullPrompt;
 
         const basePrompt = getCustomBasePrompt(influencer.id) || influencer.basePrompt;
@@ -561,7 +600,7 @@ export function CentralHistoryDisplay() {
         }
 
         return fullPrompt;
-    }, [getCustomBasePrompt]);
+    }, [getCustomBasePrompt, influencers]);
 
     // Precompute user prompts for all generations
     const userPrompts = useMemo(() => {
@@ -613,8 +652,13 @@ export function CentralHistoryDisplay() {
 
     const handleRealismBoost = useCallback(() => {
         if (!selectedImage) return;
-        boostRealism(selectedImage.imageUrl);
+        boostRealism(selectedImage.imageUrl, selectedImage.generation.id);
     }, [selectedImage, boostRealism]);
+
+    const handleRealismBoostPremium = useCallback(() => {
+        if (!selectedImage) return;
+        boostRealismPremium(selectedImage.imageUrl, selectedImage.generation.id);
+    }, [selectedImage, boostRealismPremium]);
 
     const handleCloseModal = useCallback(() => {
         setSelectedImage(null);
@@ -637,9 +681,11 @@ export function CentralHistoryDisplay() {
         }
     }, [selectedImage, deleteGeneration]);
 
-    // Filter pending generations by mode
+    // Filter pending generations by mode ONLY (Show all active batches for this mode)
     const modePendingGenerations = useMemo(() =>
-        pendingGenerations.filter((g: { contentMode: string }) => g.contentMode === contentMode),
+        pendingGenerations.filter((g: { contentMode: string }) =>
+            g.contentMode === contentMode
+        ),
         [pendingGenerations, contentMode]
     );
 
@@ -653,18 +699,26 @@ export function CentralHistoryDisplay() {
             if (pending.batchId) {
                 // Handle Batch Groups
                 const existing = batches.get(pending.batchId);
+                // Find influencer for this pending item to show avatar
+                const influencerId = pending.influencer_id;
+
                 if (existing) {
                     existing.count++;
                     existing.pendingIds.push(pending.id);
+                    // Add influencer ID if not already in the list (for multi-influencer batches)
+                    if (influencerId && !existing.influencerIds.includes(influencerId)) {
+                        existing.influencerIds.push(influencerId);
+                    }
                 } else {
                     batches.set(pending.batchId, {
                         batchId: pending.batchId,
                         count: 1,
-                        pendingIds: [pending.id]
+                        pendingIds: [pending.id],
+                        influencerIds: influencerId ? [influencerId] : []
                     });
                 }
             } else if (pending.sourceGenerationId && pending.sourceImageUrl) {
-                // Handle Series Groups
+                // ... (series grouping kept same)
                 const existing = grouped.get(pending.sourceGenerationId);
                 if (existing) {
                     existing.count++;
@@ -689,70 +743,15 @@ export function CentralHistoryDisplay() {
         };
     }, [modePendingGenerations]);
 
-    // Empty state
-    if (modeGenerations.length === 0 && modePendingGenerations.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className={cn(
-                    "w-24 h-24 rounded-full flex items-center justify-center mb-6",
-                    "bg-gradient-to-br",
-                    isSensual
-                        ? "from-rose-500/20 to-purple-500/10"
-                        : isPorn
-                            ? "from-neutral-800/20 to-neutral-900/10"
-                            : "from-cyan-500/20 to-pink-500/10"
-                )}>
-                    <svg
-                        className={cn("w-12 h-12",
-                            isSensual ? "text-rose-400/60" :
-                                isPorn ? "text-neutral-600" :
-                                    "text-cyan-400/60"
-                        )}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1}
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                    </svg>
-                </div>
-                <h3 className={cn(
-                    "text-xl font-light tracking-wide mb-2",
-                    isSensual ? "text-rose-300/80" : "text-gray-400"
-                )}>
-                    {isSensual ? 'No sensual creations' : isPorn ? 'No explicit creations' : 'Your gallery is empty'}
-                </h3>
-                <p className={cn(
-                    "text-sm font-light max-w-sm",
-                    isSensual ? "text-rose-300/40" : "text-gray-500"
-                )}>
-                    Start creating to see your generations appear here
-                </p>
-            </div>
-        );
-    }
+    // ...
 
     return (
-        <div className="space-y-4">
-
-
+        <div className="w-full relative pb-32">
             {/* Pending generation placeholders */}
             {
                 modePendingGenerations.length > 0 && (
                     <div className="flex flex-col gap-3 mb-5">
-                        {/* Grouped series pending cards */}
-                        {groupedPending.map((group) => (
-                            <PendingSeriesCard
-                                key={group.sourceGenerationId}
-                                group={group}
-                                isSensual={isSensual}
-                                isPorn={isPorn}
-                            />
-                        ))}
+                        {/* ... */}
                         {/* Batch pending cards */}
                         {batchPending.map((group) => (
                             <PendingBatchCard
@@ -760,6 +759,7 @@ export function CentralHistoryDisplay() {
                                 group={group}
                                 isSensual={isSensual}
                                 isPorn={isPorn}
+                                influencers={influencers} // Pass full list to look up avatars
                             />
                         ))}
                         {/* Ungrouped pending cards (regular generations without source) */}
@@ -769,6 +769,7 @@ export function CentralHistoryDisplay() {
                                 pending={pending}
                                 isSensual={isSensual}
                                 isPorn={isPorn}
+                                influencer={influencers.find(i => i.id === pending.influencer_id)}
                             />
                         ))}
                     </div>
@@ -777,39 +778,47 @@ export function CentralHistoryDisplay() {
 
             {/* Cinematic cards for each GENERATION */}
             <div className="flex flex-col gap-5">
-                {modeGenerations.map((generation, genIndex) => (
-                    <GenerationCard
-                        key={generation.id}
-                        generation={generation}
-                        userPrompt={userPrompts[generation.id]}
-                        isFirstCard={genIndex === 0}
-                        isSensual={isSensual}
-                        isPorn={isPorn}
-                        hasPendingGenerations={modePendingGenerations.length > 0}
-                        onClick={() => setSelectedImage({
-                            imageUrl: generation.image_urls[0],
-                            generation,
-                            imageIndex: 0,
-                        })}
-                    />
-                ))}
+                {modeGenerations.map((generation, genIndex) => {
+                    // Try to find influencer by ID first, then by name
+                    const cardInfluencer = influencers.find(i => i.id === generation.influencer_id)
+                        || influencers.find(i => i.name === generation.influencer_name);
+                    return (
+                        <GenerationCard
+                            key={generation.id}
+                            generation={generation}
+                            userPrompt={userPrompts[generation.id]}
+                            isFirstCard={genIndex === 0}
+                            isSensual={isSensual}
+                            isPorn={isPorn}
+                            hasPendingGenerations={modePendingGenerations.length > 0}
+                            influencer={cardInfluencer}
+                            onClick={() => setSelectedImage({
+                                imageUrl: generation.image_urls[0],
+                                generation,
+                                imageIndex: 0,
+                            })}
+                        />
+                    );
+                })}
             </div>
 
             {/* Load More Button for Main Gallery */}
-            {hasMore && (
-                <div className="flex justify-center py-6">
-                    <Button
-                        variant="outline"
-                        className={cn(
-                            "px-8 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-sm font-light tracking-widest uppercase transition-all duration-300",
-                            isSensual ? "text-rose-300 border-rose-500/20" : "text-cyan-300 border-cyan-500/20"
-                        )}
-                        onClick={() => setRenderLimit(prev => prev + 20)}
-                    >
-                        Load More Generations
-                    </Button>
-                </div>
-            )}
+            {
+                hasMore && (
+                    <div className="flex justify-center py-6">
+                        <Button
+                            variant="outline"
+                            className={cn(
+                                "px-8 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-sm font-light tracking-widest uppercase transition-all duration-300",
+                                isSensual ? "text-rose-300 border-rose-500/20" : "text-cyan-300 border-cyan-500/20"
+                            )}
+                            onClick={() => setRenderLimit(prev => prev + 20)}
+                        >
+                            Load More Generations
+                        </Button>
+                    </div>
+                )
+            }
 
             {/* Image Detail Modal */}
             <ImageDetailModal
@@ -827,6 +836,7 @@ export function CentralHistoryDisplay() {
                 onContinueSeries={handleContinueSeries}
                 onDelete={handleDelete}
                 onRealismBoost={handleRealismBoost}
+                onRealismBoostPremium={handleRealismBoostPremium}
                 onSeriesSelect={(index) => {
                     if (!selectedImage) return;
                     const images = selectedImage.generation.image_urls;

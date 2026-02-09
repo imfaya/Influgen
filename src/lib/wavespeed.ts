@@ -52,14 +52,18 @@ export function createGenerationRequest(
     numOutputs: 1 | 2 | 4 | 8,
     aspectRatio: AspectRatio,
     referenceImages?: string[],
-    model?: string
+    model?: string,
+    imageStrength?: number,
+    negativePrompt?: string
 ): GenerationRequest {
     return {
         model: model || WAVESPEED_CONFIG.model,
         prompt,
+        negative_prompt: negativePrompt,
         num_outputs: numOutputs,
         aspect_ratio: aspectRatio,
         resolution: getResolutionForAspectRatio(aspectRatio),
         reference_images: referenceImages,
+        image_strength: imageStrength,
     };
 }

@@ -7,6 +7,9 @@ import Image from 'next/image';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useGenerationStore } from '@/store';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Calendar } from 'lucide-react';
 
 export function Header() {
     const { contentMode } = useGenerationStore();
@@ -118,6 +121,17 @@ export function Header() {
 
             {/* Right side actions */}
             <div className="flex items-center gap-4">
+                <Link href="/scheduler">
+                    <Button variant="ghost" size="sm" className={cn(
+                        "gap-2",
+                        isSensual ? "text-rose-400 hover:text-rose-500 hover:bg-rose-50" :
+                            isPorn ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50" :
+                                "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                    )}>
+                        <Calendar className="w-4 h-4" />
+                        Scheduler
+                    </Button>
+                </Link>
                 <div className={cn(
                     "text-sm",
                     isSensual ? "text-rose-300" : isPorn ? "text-amber-500" : "text-gray-500 dark:text-gray-400"

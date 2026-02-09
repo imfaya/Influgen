@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StoreInitializer } from "@/components/StoreInitializer";
+import { AuthProvider } from "@/components/providers/AuthContext";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,11 +31,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <StoreInitializer />
-          {children}
+          <AuthProvider>
+            <StoreInitializer />
+            {children}
+            <Toaster richColors position="bottom-right" />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-

@@ -46,7 +46,7 @@ export const InfluencerWorkspace: React.FC<InfluencerWorkspaceProps> = ({ onBack
 
     return (
         <div className={`h-screen flex flex-col transition-colors duration-300 app-enter ${contentMode === 'sensual' ? 'sensual-mode' : contentMode === 'porn' ? 'porn-mode' : ''
-            } bg-[#F7F9FC] dark:bg-[#0f0f0f]`}>
+            } bg-transparent`}>
             {/* Header */}
             <Header />
 

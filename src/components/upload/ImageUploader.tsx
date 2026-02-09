@@ -2,11 +2,12 @@
 
 // Image uploader with drag-and-drop functionality
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useGenerationStore } from '@/store';
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { filterReferenceImagesByMode } from '@/lib/filterByContentMode';
 
 export function ImageUploader() {
     const [isDragging, setIsDragging] = useState(false);
@@ -70,6 +71,10 @@ export function ImageUploader() {
 
     // referenceImages already contains only the current influencer's images
     // (managed by the store when switching influencers)
+    // Filter images based on content mode
+    const filteredImages = useMemo(() => {
+        return filterReferenceImagesByMode(referenceImages, contentMode);
+    }, [referenceImages, contentMode]);
 
     return (
         <div className="space-y-3">
@@ -164,15 +169,15 @@ export function ImageUploader() {
                 </p>
             )}
 
-            {/* Uploaded Images */}
-            {referenceImages.length > 0 && (
+            {/* Uploaded Images - Show filtered images based on content mode */}
+            {filteredImages.length > 0 && (
                 <div className="space-y-2">
                     <p className={cn(
                         "text-xs",
                         isSensual ? "text-rose-600 dark:text-rose-400" : isPorn ? "text-amber-600 dark:text-amber-400" : "text-gray-500 dark:text-gray-400"
-                    )}>{referenceImages.length} reference image(s)</p>
+                    )}>{filteredImages.length} reference image(s)</p>
                     <div className="grid grid-cols-3 gap-2">
-                        {referenceImages.map((img) => (
+                        {filteredImages.map((img) => (
                             <div key={img.id} className="relative group aspect-square">
                                 <img
                                     src={img.image_url}
