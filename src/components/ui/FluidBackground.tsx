@@ -4,22 +4,22 @@ import React, { useEffect, useRef } from 'react';
 import { useGenerationStore } from '@/store';
 import { ContentMode } from '@/types';
 
-// Color Palettes for different modes (Premium/Deep variants)
+// Color Palettes for different modes (More subtle variants)
 const PALETTES: Record<ContentMode, string[]> = {
     social: [
-        'rgba(6, 182, 212, 0.6)', // Cyan-500 (Brighter)
-        'rgba(139, 92, 246, 0.5)', // Violet-500
-        'rgba(37, 99, 235, 0.5)'   // Blue-600
+        'rgba(6, 182, 212, 0.3)',    // Cyan-500 (Subtle)
+        'rgba(139, 92, 246, 0.25)',  // Violet-500 (Subtle)
+        'rgba(37, 99, 235, 0.25)'    // Blue-600 (Subtle)
     ],
     sensual: [
-        'rgba(244, 63, 94, 0.8)',  // Rose-500 (Vibrant)
-        'rgba(236, 72, 153, 0.75)',  // Pink-500
-        'rgba(168, 85, 247, 0.6)'   // Purple-500
+        'rgba(244, 63, 94, 0.35)',   // Rose-500 (Softer)
+        'rgba(236, 72, 153, 0.3)',   // Pink-500 (Softer)
+        'rgba(168, 85, 247, 0.25)'   // Purple-500 (Softer)
     ],
     porn: [
-        'rgba(245, 158, 11, 0.8)',  // Amber-500 (Gold)
-        'rgba(239, 68, 68, 0.8)',   // Red-500
-        'rgba(217, 119, 6, 0.7)'    // Amber-600
+        'rgba(245, 158, 11, 0.35)',  // Amber-500 (Softer)
+        'rgba(239, 68, 68, 0.35)',   // Red-500 (Softer)
+        'rgba(217, 119, 6, 0.3)'     // Amber-600 (Softer)
     ]
 };
 
@@ -78,9 +78,9 @@ export function FluidBackground() {
             return current.map((c, i) => c + (target[i] - c) * speed);
         }
 
-        // Initialize Orbs (More particles, varied sizes)
+        // Initialize Orbs (Subtle, ambient particles)
         const initOrbs = () => {
-            const orbCount = 15; // Increased count
+            const orbCount = 8; // Reduced for subtlety
             const newOrbs = [];
 
             for (let i = 0; i < orbCount; i++) {
@@ -99,15 +99,15 @@ export function FluidBackground() {
             return {
                 x: Math.random() * width,
                 y: Math.random() * height,
-                vx: (Math.random() - 0.5) * 0.5, // Random slow velocity
-                vy: (Math.random() - 0.5) * 0.5,
-                r: Math.random() * 350 + 150, // Varied radius: 150 - 500
+                vx: (Math.random() - 0.5) * 0.3, // Slower, more ambient movement
+                vy: (Math.random() - 0.5) * 0.3,
+                r: Math.random() * 150 + 200, // Smaller radius: 200 - 350
                 colorIndex: colorIndex,
                 currentColor: parseColor(currentPalette[colorIndex]),
-                opacity: initial ? Math.random() : 0, // Start invisible if respawning
-                targetOpacity: Math.random() * 0.3 + 0.1, // Max opacity 0.1 - 0.4 (More subtle)
+                opacity: initial ? Math.random() * 0.1 : 0, // Start very subtle
+                targetOpacity: Math.random() * 0.12 + 0.05, // Max opacity 0.05 - 0.17 (Very subtle)
                 life: 0,
-                maxLife: Math.random() * 500 + 300, // Frames to switch behavior/opacity
+                maxLife: Math.random() * 600 + 400, // Longer life cycles for smoother transitions
                 phase: initial ? 'sustain' : 'in' // in, sustain, out
             };
         };
@@ -217,8 +217,8 @@ export function FluidBackground() {
 
             const spotlightGradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 600);
 
-            // Adjust opacity for spotlight
-            const spotColorStr = `rgba(${Math.round(spotColorRgba[0])}, ${Math.round(spotColorRgba[1])}, ${Math.round(spotColorRgba[2])}, 0.15)`; // Lower opacity/subtle
+            // Adjust opacity for spotlight (very subtle)
+            const spotColorStr = `rgba(${Math.round(spotColorRgba[0])}, ${Math.round(spotColorRgba[1])}, ${Math.round(spotColorRgba[2])}, 0.06)`; // Much more subtle
             spotlightGradient.addColorStop(0, spotColorStr);
             spotlightGradient.addColorStop(1, 'rgba(0,0,0,0)');
 
@@ -249,9 +249,9 @@ export function FluidBackground() {
         <div className="fixed inset-0 -z-10 bg-[#050505] overflow-hidden pointer-events-none transition-colors duration-1000">
             {/* Grid Overlay */}
             <div
-                className="absolute inset-0 opacity-20"
+                className="absolute inset-0 opacity-10"
                 style={{
-                    backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
+                    backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)`,
                     backgroundSize: '30px 30px'
                 }}
             />

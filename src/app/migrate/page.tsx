@@ -61,6 +61,7 @@ export default function MigratePage() {
             // Transform to local format
             const localGenerations = dbGenerations.map(gen => ({
                 id: gen.id,
+                influencer_id: gen.influencer_id, // Add missing field
                 influencer_name: influencerMap.get(gen.influencer_id) || 'Unknown',
                 prompt: gen.prompt,
                 parameters: gen.parameters,

@@ -90,8 +90,6 @@ export async function middleware(request: NextRequest) {
     // This allows the app to load even if middleware fails to detect session
 
     return NextResponse.next();
-
-    return NextResponse.next();
 }
 
 export const config = {

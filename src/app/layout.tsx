@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StoreInitializer } from "@/components/StoreInitializer";
 import { AuthProvider } from "@/components/providers/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ReactQueryProvider } from "@/lib/queryClient";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -25,18 +27,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <StoreInitializer />
-            {children}
-            <Toaster richColors position="bottom-right" />
-          </AuthProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ReactQueryProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <AuthProvider>
+                <StoreInitializer />
+                {children}
+                <Toaster richColors position="bottom-right" />
+              </AuthProvider>
+            </ThemeProvider>
+          </ReactQueryProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

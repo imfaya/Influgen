@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { HistoryPanel } from '@/components/layout/HistoryPanel';
@@ -8,6 +8,7 @@ import { CategorySelector } from '@/components/layout/CategorySelector';
 import { PromptGenerator } from '@/components/generation/PromptGenerator';
 import { CentralHistoryDisplay } from '@/components/gallery/CentralHistoryDisplay';
 import { ImageModal } from '@/components/gallery/ImageModal';
+import { CustomScrollbar } from '@/components/ui/CustomScrollbar';
 import { useGenerationStore } from '@/store';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ export const InfluencerWorkspace: React.FC<InfluencerWorkspaceProps> = ({ onBack
     } = useGenerationStore();
     const [hasMounted, setHasMounted] = useState(false);
     const [isStealItOpen, setIsStealItOpen] = useState(false);
+    const scrollContainerRef = useRef<HTMLElement>(null);
 
     // Default to true if not set
     const isActive = influencerStatus[selectedInfluencer.id] ?? true;
@@ -56,7 +58,7 @@ export const InfluencerWorkspace: React.FC<InfluencerWorkspaceProps> = ({ onBack
                 <button
                     onClick={onBack}
                     className={cn(
-                        "absolute top-4 z-50 group flex items-center gap-2 px-6 py-3 backdrop-blur-md rounded-full transition-all duration-500 ease-in-out animate-pulse hover:animate-none hover:scale-105",
+                        "absolute top-4 z-50 group flex items-center gap-2 px-6 py-3 backdrop-blur-md rounded-full transition-all duration-300 ease-in-out hover:scale-105",
                         contentMode === 'sensual'
                             ? "bg-rose-500/10 border border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)] hover:shadow-[0_0_25px_rgba(244,63,94,0.8)]"
                             : contentMode === 'porn'
@@ -95,7 +97,7 @@ export const InfluencerWorkspace: React.FC<InfluencerWorkspaceProps> = ({ onBack
                 <Sidebar />
 
                 {/* Center Content */}
-                <main className="flex-1 overflow-auto p-6 scroll-smooth pt-20">
+                <main ref={scrollContainerRef} className="flex-1 overflow-auto p-6 pt-20" style={{ scrollBehavior: 'auto' }}>
                     <div className="max-w-4xl mx-auto space-y-6">
                         {/* Category Selector */}
                         <div className="mb-8">
@@ -117,6 +119,9 @@ export const InfluencerWorkspace: React.FC<InfluencerWorkspaceProps> = ({ onBack
                         </div>
                     </div>
                 </main>
+
+                {/* Custom Floating Scrollbar */}
+                <CustomScrollbar scrollContainerRef={scrollContainerRef} />
 
                 {/* Right History Panel */}
                 <HistoryPanel />
