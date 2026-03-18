@@ -189,6 +189,7 @@ interface PendingSeriesGroup {
     sourceImageUrl: string;
     count: number;
     pendingIds: string[];
+    actionType: 'continue' | 'iphone' | 'iphone_premium';
 }
 
 // Grouped pending BATCH card - for parallel OG generations
@@ -329,17 +330,48 @@ const PendingSeriesCard = memo(function PendingSeriesCard({
     isPorn: boolean;
 }) {
     const [imageLoaded, setImageLoaded] = useState(false);
+    const isIphone = group.actionType === 'iphone' || group.actionType === 'iphone_premium';
+
+    // Action-specific colors
+    const actionColors = isIphone
+        ? {
+            border: 'border-emerald-500/40',
+            bg: 'bg-gradient-to-r from-emerald-950/50 via-green-900/30 to-emerald-950/50',
+            shimmer: 'bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent',
+            ring: 'ring-emerald-500/60',
+            badge: 'bg-emerald-500 text-white',
+            dots: 'bg-emerald-400',
+            text: 'text-emerald-300/90',
+            label: '📱 iPhone Boost',
+            labelBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        }
+        : {
+            border: isSensual ? 'border-rose-500/40' : isPorn ? 'border-white/20' : 'border-cyan-500/40',
+            bg: isSensual
+                ? 'bg-gradient-to-r from-rose-950/50 via-rose-900/30 to-rose-950/50'
+                : isPorn
+                    ? 'bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950'
+                    : 'bg-gradient-to-r from-gray-800/60 via-cyan-900/30 to-gray-800/60',
+            shimmer: isSensual
+                ? 'bg-gradient-to-r from-transparent via-rose-500/20 to-transparent'
+                : isPorn
+                    ? 'bg-gradient-to-r from-transparent via-white/10 to-transparent'
+                    : 'bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent',
+            ring: isSensual ? 'ring-rose-500/60' : isPorn ? 'ring-white/30' : 'ring-cyan-500/60',
+            badge: isSensual ? 'bg-rose-500 text-white' : isPorn ? 'bg-white text-black' : 'bg-cyan-500 text-white',
+            dots: isSensual ? 'bg-rose-400' : isPorn ? 'bg-white/50' : 'bg-cyan-400',
+            text: isSensual ? 'text-rose-300/90' : isPorn ? 'text-neutral-400' : 'text-cyan-300/90',
+            label: '🚀 Continue Series',
+            labelBg: isSensual ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : isPorn ? 'bg-white/10 text-neutral-300 border-white/20' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+        };
 
     return (
         <div
             className={cn(
                 "relative w-full h-52 md:h-60 rounded-2xl overflow-hidden",
                 "border",
-                isSensual
-                    ? "bg-gradient-to-r from-rose-950/40 via-rose-900/30 to-rose-950/40 border-rose-500/30"
-                    : isPorn
-                        ? "bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 border-white/20"
-                        : "bg-gradient-to-r from-gray-800/60 via-cyan-900/30 to-gray-800/60 border-cyan-500/30"
+                actionColors.border,
+                actionColors.bg
             )}
         >
             {/* Background source image (blurred) */}
@@ -355,7 +387,7 @@ const PendingSeriesCard = memo(function PendingSeriesCard({
                         )}
                         onLoad={() => setImageLoaded(true)}
                     />
-                    <div className="absolute inset-0 bg-black/60" />
+                    <div className="absolute inset-0 bg-black/50" />
                 </>
             )}
 
@@ -363,39 +395,43 @@ const PendingSeriesCard = memo(function PendingSeriesCard({
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className={cn(
                     "absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite]",
-                    isSensual
-                        ? "bg-gradient-to-r from-transparent via-rose-500/20 to-transparent"
-                        : isPorn
-                            ? "bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                            : "bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent"
+                    actionColors.shimmer
                 )} />
+            </div>
+
+            {/* Action type badge - Top left */}
+            <div className="absolute top-3 left-3 z-20">
+                <div className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-bold tracking-wider border backdrop-blur-sm",
+                    actionColors.labelBg
+                )}>
+                    {actionColors.label}
+                </div>
             </div>
 
             {/* Content - Source image thumbnail + count */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
-                {/* Source image thumbnail */}
+                {/* Source image thumbnail - prominent */}
                 {group.sourceImageUrl && (
                     <div className="relative">
                         <img
                             src={getThumbnailUrl(group.sourceImageUrl, { width: 200 })}
-                            alt=""
+                            alt="Source"
                             className={cn(
-                                "w-20 h-20 rounded-xl object-cover ring-2",
-                                isSensual ? "ring-rose-500/50" : isPorn ? "ring-white/30" : "ring-cyan-500/50"
+                                "w-24 h-24 rounded-xl object-cover ring-2 shadow-2xl",
+                                actionColors.ring
                             )}
                         />
                         {/* Count badge */}
-                        <div className={cn(
-                            "absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center",
-                            "text-sm font-bold",
-                            isSensual
-                                ? "bg-rose-500 text-white"
-                                : isPorn
-                                    ? "bg-white text-black"
-                                    : "bg-cyan-500 text-white"
-                        )}>
-                            {group.count}
-                        </div>
+                        {group.count > 1 && (
+                            <div className={cn(
+                                "absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center",
+                                "text-sm font-bold shadow-lg",
+                                actionColors.badge
+                            )}>
+                                {group.count}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -404,10 +440,7 @@ const PendingSeriesCard = memo(function PendingSeriesCard({
                     {[0, 1, 2].map((i) => (
                         <div
                             key={i}
-                            className={cn(
-                                "w-2.5 h-2.5 rounded-full",
-                                isSensual ? "bg-rose-400" : isPorn ? "bg-white/50" : "bg-cyan-400"
-                            )}
+                            className={cn("w-2.5 h-2.5 rounded-full", actionColors.dots)}
                             style={{
                                 animation: `pulse 1.4s ease-in-out infinite`,
                                 animationDelay: `${i * 0.2}s`
@@ -416,11 +449,8 @@ const PendingSeriesCard = memo(function PendingSeriesCard({
                     ))}
                 </div>
 
-                <p className={cn(
-                    "text-base font-light tracking-wider",
-                    isSensual ? "text-rose-300/80" : isPorn ? "text-neutral-400" : "text-cyan-300/80"
-                )}>
-                    Generating {group.count} image{group.count > 1 ? 's' : ''}...
+                <p className={cn("text-base font-light tracking-wider", actionColors.text)}>
+                    {isIphone ? 'Boosting realism...' : `Continuing series...`}
                 </p>
             </div>
         </div>
@@ -718,17 +748,25 @@ export function CentralHistoryDisplay() {
                     });
                 }
             } else if (pending.sourceGenerationId && pending.sourceImageUrl) {
-                // ... (series grouping kept same)
-                const existing = grouped.get(pending.sourceGenerationId);
+                // Determine action type from tags
+                const actionType: 'continue' | 'iphone' | 'iphone_premium' = 
+                    pending.tags?.includes('realism_boost_premium') || pending.tags?.includes('realism_boost_fallback') ? 'iphone_premium'
+                    : pending.tags?.includes('realism_boost') ? 'iphone'
+                    : 'continue';
+
+                // Group by sourceGenerationId + actionType for separate cards
+                const groupKey = `${pending.sourceGenerationId}_${actionType}`;
+                const existing = grouped.get(groupKey);
                 if (existing) {
                     existing.count++;
                     existing.pendingIds.push(pending.id);
                 } else {
-                    grouped.set(pending.sourceGenerationId, {
+                    grouped.set(groupKey, {
                         sourceGenerationId: pending.sourceGenerationId,
                         sourceImageUrl: pending.sourceImageUrl,
                         count: 1,
-                        pendingIds: [pending.id]
+                        pendingIds: [pending.id],
+                        actionType
                     });
                 }
             } else {
@@ -751,7 +789,15 @@ export function CentralHistoryDisplay() {
             {
                 modePendingGenerations.length > 0 && (
                     <div className="flex flex-col gap-3 mb-5">
-                        {/* ... */}
+                        {/* Series pending cards (Continue / iPhone) */}
+                        {groupedPending.map((group) => (
+                            <PendingSeriesCard
+                                key={group.pendingIds[0]}
+                                group={group}
+                                isSensual={isSensual}
+                                isPorn={isPorn}
+                            />
+                        ))}
                         {/* Batch pending cards */}
                         {batchPending.map((group) => (
                             <PendingBatchCard

@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BatchGenerateModal } from '@/components/dashboard/BatchGenerateModal';
 import { UserSettingsModal } from '@/components/dashboard/UserSettingsModal';
+import { WavespeedBalance } from '@/components/dashboard/WavespeedBalance';
 import { toast } from 'sonner';
 
 interface InfluencerWithDB {
@@ -187,6 +188,9 @@ export default function UserDashboard() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Wavespeed Balance */}
+                            <WavespeedBalance />
+
                             {/* Calendar Button */}
                             <Link
                                 href={`/${profile.username}/scheduler`}

@@ -12,8 +12,11 @@ import { useGeneration } from '@/hooks/useGeneration';
 import { MAX_PROMPT_LENGTH, DEFAULT_LLM_SYSTEM_PROMPT, MODELS } from '@/lib/constants';
 import { useGenerationStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { SHOOTING_DIRECTIONS, type ShootingDirectionId } from '@/lib/shootingDirections';
 
 export function PromptGenerator() {
+    const [selectedDirection, setSelectedDirection] = React.useState<ShootingDirectionId>('random');
+
     const {
         prompt,
         setPrompt,
@@ -25,7 +28,7 @@ export function PromptGenerator() {
         selectedInfluencer,
         parameters,
         generateBatchOG,
-    } = useGeneration();
+    } = useGeneration(selectedDirection);
 
     // Calculate total cost based on model and number of outputs
     const selectedModel = MODELS.find(m => m.id === parameters.model);
@@ -112,6 +115,10 @@ export function PromptGenerator() {
 
     const [isStealMode, setIsStealMode] = React.useState(false);
     const [stealImage, setStealImage] = React.useState<string | null>(null);
+    const [stealIntensity, setStealIntensity] = React.useState<'100' | '50' | '10'>('100');
+    const stealIntensityRef = React.useRef(stealIntensity);
+    React.useEffect(() => { stealIntensityRef.current = stealIntensity; }, [stealIntensity]);
+
     const [isDragging, setIsDragging] = React.useState(false);
     const [isAnalyzing, setIsAnalyzing] = React.useState(false);
 
@@ -169,10 +176,10 @@ export function PromptGenerator() {
         setStealImage(compressedBase64);
 
         // 2. Auto-Trigger Analysis & Generation
-        await handleStealGeneration(compressedBase64);
+        await handleStealGeneration(compressedBase64, stealIntensityRef.current);
     };
 
-    const handleStealGeneration = async (imageData: string) => {
+    const handleStealGeneration = async (imageData: string, intensity: '100' | '50' | '10' = stealIntensity) => {
         setIsAnalyzing(true);
         try {
             // A. Analyze Image (Visual Description)
@@ -193,7 +200,8 @@ export function PromptGenerator() {
                 await generate(undefined, undefined, {
                     tags: ['steal-it'],
                     promptOverride: data.prompt, // Visual description
-                    stealItImage: imageData // Visual input
+                    stealItImage: imageData, // Visual input
+                    stealIntensity: intensity
                 });
 
                 // Reset after success? Maybe keep it to show what was stolen?
@@ -222,7 +230,7 @@ export function PromptGenerator() {
         setIsShootingInProgress(true);
         setShowShootingPicker(false);
         try {
-            await generateBatchOG(shootingCount);
+            await generateBatchOG(shootingCount, selectedDirection);
         } finally {
             setIsShootingInProgress(false);
         }
@@ -271,19 +279,43 @@ export function PromptGenerator() {
                     </div>
                     <div className="relative">
                         {isStealMode ? (
-                            <div
-                                onDragOver={onDragOver}
-                                onDragLeave={onDragLeave}
-                                onDrop={onDrop}
-                                onClick={() => document.getElementById('steal-input')?.click()}
-                                className={cn(
-                                    "min-h-[120px] rounded-md border-2 border-dashed transition-all flex flex-col items-center justify-center cursor-pointer text-center p-4",
-                                    isDragging
-                                        ? "border-red-500 bg-red-500/5 scale-[0.99]"
-                                        : "border-gray-300 dark:border-gray-700 hover:border-red-400 hover:bg-red-500/5",
-                                    (isAnalyzing || stealImage) && "border-solid border-red-500/20 bg-red-500/5"
-                                )}
-                            >
+                            <div className="flex flex-col gap-2">
+                                {/* Intensity selector */}
+                                <div className="flex justify-center gap-2 mb-1">
+                                    {[
+                                        { value: '100', label: '100%', icon: '🔒', description: 'Exact Copy' },
+                                        { value: '50', label: '50%', icon: '🎨', description: 'Inspired By' },
+                                        { value: '10', label: '10%', icon: '✨', description: 'Just the Mood' }
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={(e) => { e.stopPropagation(); setStealIntensity(opt.value as '100' | '50' | '10'); }}
+                                            className={cn(
+                                                "px-3 py-1.5 text-[11px] font-medium rounded-full border transition-all flex items-center gap-1.5",
+                                                stealIntensity === opt.value
+                                                    ? "bg-red-500/10 border-red-500/30 text-red-500"
+                                                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-500/30"
+                                            )}
+                                        >
+                                            <span className="text-sm">{opt.icon}</span>
+                                            <span className="font-bold">{opt.label}</span>
+                                            <span className="opacity-70 hidden sm:inline">{opt.description}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div
+                                    onDragOver={onDragOver}
+                                    onDragLeave={onDragLeave}
+                                    onDrop={onDrop}
+                                    onClick={() => document.getElementById('steal-input')?.click()}
+                                    className={cn(
+                                        "min-h-[120px] rounded-md border-2 border-dashed transition-all flex flex-col items-center justify-center cursor-pointer text-center p-4",
+                                        isDragging
+                                            ? "border-red-500 bg-red-500/5 scale-[0.99]"
+                                            : "border-gray-300 dark:border-gray-700 hover:border-red-400 hover:bg-red-500/5",
+                                        (isAnalyzing || stealImage) && "border-solid border-red-500/20 bg-red-500/5"
+                                    )}
+                                >
                                 <input
                                     id="steal-input"
                                     type="file"
@@ -321,6 +353,7 @@ export function PromptGenerator() {
                                         </p>
                                     </>
                                 )}
+                                </div>
                             </div>
                         ) : (
                             <Textarea
@@ -435,6 +468,17 @@ export function PromptGenerator() {
                                     </p>
                                 </div>
 
+                                {/* Active direction badge */}
+                                {contentMode === 'social' && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                                        <span className="text-xs text-gray-400">Direction:</span>
+                                        <span className="text-[11px] font-bold text-[#4ECDC4]">
+                                            {SHOOTING_DIRECTIONS.find(d => d.id === selectedDirection)?.emoji}{' '}
+                                            {SHOOTING_DIRECTIONS.find(d => d.id === selectedDirection)?.label}
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-center py-2 relative">
                                     <span className="text-4xl font-black bg-gradient-to-r from-[#4ECDC4] to-[#26A69A] bg-clip-text text-transparent">
                                         {shootingCount}
@@ -481,6 +525,53 @@ export function PromptGenerator() {
                 </div>
             )}
 
+            {/* Shooting Direction Chips — Social mode only */}
+            {contentMode === 'social' && (() => {
+                const shootDirs = SHOOTING_DIRECTIONS.filter(d => d.category === 'shoot');
+                const candidDirs = SHOOTING_DIRECTIONS.filter(d => d.category === 'candid');
+                const renderChip = (dir: (typeof SHOOTING_DIRECTIONS)[number]) => {
+                    const isActive = selectedDirection === dir.id;
+                    return (
+                        <button
+                            key={dir.id}
+                            onClick={() => setSelectedDirection(dir.id)}
+                            title={dir.description}
+                            className={cn(
+                                'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all duration-200 border',
+                                isActive
+                                    ? 'bg-[#4ECDC4] border-[#4ECDC4] text-white shadow-md shadow-[#4ECDC4]/30 scale-105'
+                                    : 'bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-[#4ECDC4] hover:text-[#4ECDC4] hover:bg-[#4ECDC4]/5'
+                            )}
+                        >
+                            <span className="text-[13px] leading-none">{dir.emoji}</span>
+                            <span>{dir.label}</span>
+                        </button>
+                    );
+                };
+                return (
+                    <div className="space-y-2">
+                        {/* Shoot row */}
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                <span>📷</span> Shoot
+                            </p>
+                            <div className="flex gap-1.5 flex-wrap">
+                                {shootDirs.map(renderChip)}
+                            </div>
+                        </div>
+                        {/* Candid row */}
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                <span>📱</span> Candid
+                            </p>
+                            <div className="flex gap-1.5 flex-wrap">
+                                {candidDirs.map(renderChip)}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
 
 
             {/* Action Buttons */}
@@ -488,7 +579,7 @@ export function PromptGenerator() {
                 {/* Randomize */}
                 <Button
                     variant="outline"
-                    onClick={randomizePrompt}
+                    onClick={() => randomizePrompt(selectedDirection)}
                     disabled={isRandomizing}
                     className="w-40 h-12 border-gray-200 hover:border-[#4ECDC4] hover:bg-[#4ECDC4]/5 transition-all"
                 >

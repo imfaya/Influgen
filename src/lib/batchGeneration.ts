@@ -174,4 +174,9 @@ export async function generateMultiInfluencerBatch(
     const failed = results.filter(r => !r.success).length;
 
     console.log(`[BatchGen] Complete: ${successful} successful, ${failed} failed`);
+
+    // Trigger immediate balance refresh
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('wavespeed-balance-refresh'));
+    }
 }

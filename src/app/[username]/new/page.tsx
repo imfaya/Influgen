@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { ReferenceImageDropZone, UploadedImage } from '@/components/influencer/ReferenceImageDropZone';
 import { uploadReferenceImage, uploadThumbnail } from '@/lib/supabase-storage';
 import { useGenerationStore } from '@/store';
+import { WavespeedBalance } from '@/components/dashboard/WavespeedBalance';
 
 export default function NewInfluencerPage() {
     const router = useRouter();
@@ -209,16 +210,21 @@ export default function NewInfluencerPage() {
             {/* Header */}
             <header className="border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href={`/${username}/dashboard`}
-                            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <div>
-                            <h1 className="text-lg font-semibold text-white">Create New Influencer</h1>
-                            <p className="text-sm text-zinc-500">Add a new AI persona to your collection</p>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Link
+                                href={`/${username}/dashboard`}
+                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </Link>
+                            <div>
+                                <h1 className="text-lg font-semibold text-white">Create New Influencer</h1>
+                                <p className="text-sm text-zinc-500">Add a new AI persona to your collection</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center">
+                            <WavespeedBalance />
                         </div>
                     </div>
                 </div>

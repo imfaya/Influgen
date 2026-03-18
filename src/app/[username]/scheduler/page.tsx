@@ -5,6 +5,7 @@ import { CalendarView } from '@/components/scheduler/CalendarView';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { WavespeedBalance } from '@/components/dashboard/WavespeedBalance';
 
 export default function SchedulerPage() {
     const params = useParams();
@@ -28,6 +29,9 @@ export default function SchedulerPage() {
                             </h1>
                             <p className="text-zinc-400">Manage and schedule your Instagram posts.</p>
                         </div>
+                    </div>
+                    <div className="flex items-center">
+                        <WavespeedBalance />
                     </div>
                 </div>
 

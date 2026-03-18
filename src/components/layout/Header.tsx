@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
+import { WavespeedBalance } from '@/components/dashboard/WavespeedBalance';
 
 export function Header() {
     const { contentMode } = useGenerationStore();
@@ -121,6 +122,7 @@ export function Header() {
 
             {/* Right side actions */}
             <div className="flex items-center gap-4">
+                <WavespeedBalance />
                 <Link href="/scheduler">
                     <Button variant="ghost" size="sm" className={cn(
                         "gap-2",

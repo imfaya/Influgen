@@ -1029,7 +1029,7 @@ export function ImageDetailModal({
                                                 ? "bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700"
                                                 : "bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white"
                                     )}
-                                    onClick={() => { onContinueSeries(); onClose(); }}
+                                    onClick={() => { onContinueSeries(); toast('🚀 Continue Series launched!', { description: 'Check your gallery for the result' }); onClose(); }}
                                 >
                                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -1037,36 +1037,20 @@ export function ImageDetailModal({
                                     Continue Series
                                 </Button>
 
-                                {/* Realism Boost Buttons - Split into Standard and Premium */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button
-                                        size="sm"
-                                        className={cn(
-                                            "w-full justify-center h-10 font-semibold transition-all text-xs",
-                                            "bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                                        )}
-                                        onClick={() => { onRealismBoost?.(); onClose(); }}
-                                    >
-                                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        iPhone
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        className={cn(
-                                            "w-full justify-center h-10 font-semibold transition-all text-xs",
-                                            "bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30",
-                                            "text-amber-300 border border-amber-500/30"
-                                        )}
-                                        onClick={() => { onRealismBoostPremium?.(); onClose(); }}
-                                    >
-                                        <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                        </svg>
-                                        Premium
-                                    </Button>
-                                </div>
+                                {/* Realism Boost - iPhone style, full width */}
+                                <Button
+                                    size="sm"
+                                    className={cn(
+                                        "w-full justify-center h-10 font-semibold transition-all text-xs",
+                                        "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                                    )}
+                                    onClick={() => { onRealismBoost?.(); toast('📱 iPhone boost launched!', { description: 'Check your gallery for the result' }); onClose(); }}
+                                >
+                                    <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    iPhone
+                                </Button>
 
                                 {/* Series Download Button */}
                                 {localImages.length > 1 && (

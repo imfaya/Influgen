@@ -86,6 +86,11 @@ export function useImageGeneration() {
                 return tempImages; // Fallback to temporary URLs
             });
 
+            // Trigger immediate balance refresh after generation
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('wavespeed-balance-refresh'));
+            }
+
             return {
                 success: true,
                 images: permanentImages

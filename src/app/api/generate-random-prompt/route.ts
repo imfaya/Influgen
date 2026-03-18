@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { ContentMode } from '@/types';
 import { getUserApiKey } from '@/lib/getUserApiKey';
 import { CAMERA_MODIFIERS, MOOD_MODIFIERS, COMPOSITION_MODIFIERS } from '@/lib/constants';
+import {
+    SHOOTING_DIRECTIONS,
+    DIRECTION_LOCATIONS,
+    DIRECTION_STYLE_SEEDS,
+    type ShootingDirectionId,
+} from '@/lib/shootingDirections';
 
 // ============================================================================
 // PROMPT ENGINEERING SYSTEMS
@@ -24,6 +30,16 @@ Your prompts MUST look like real professional photography, NOT AI-generated cont
 - Can be either spontaneous unposed OR carefully composed professional shots
 - Balance between authentic candid energy and polished influencer aesthetic
 
+**CRITICAL: VISUAL COHERENCE — THIS IS NON-NEGOTIABLE**
+Pick ONE clear location/context and make EVERY element serve it naturally:
+- If location is a STUDIO: no fog machines, no poetry books, no surrealist props — only what a real studio session would contain
+- If location is a STREET: no lighting equipment visible, candid energy only
+- If location is a BEDROOM/APARTMENT: cosy intimate props only, nothing that doesn't belong in a real home
+- NEVER mix incompatible worlds (e.g. smoke machines in a minimalist studio, random animals, unexplained objects floating)
+- Every prop, accessory, and background detail must have a LOGICAL reason to be there
+- Ask yourself: "Would a real photographer actually have this in this shot?" — if no, remove it
+- ONE setting, ONE vibe, ONE coherent visual story. Resist the urge to add "interesting" elements that break reality.
+
 AESTHETIC DIRECTION:
 - Instagram influencer vibe: confident, sexy but tasteful, modern and trendy
 - Outfits: bikinis, bodysuits, crop tops, mini dresses, trendy athleisure, form-fitting pieces
@@ -34,7 +50,7 @@ AESTHETIC DIRECTION:
 
 MANDATORY STRUCTURE (Single flowing paragraph):
 1. TECHNICAL: Start with "Shot on [camera] with [lens], [film characteristics]", then camera angle, mention photography style (candid OR professional shooting)
-2. LOCATION: Modern trendy REALISTIC setting with specific details - resort, bedroom, beach, urban spot
+2. LOCATION: One coherent REALISTIC setting with specific details — only include what logically belongs there
 3. POSE: Confident sensual pose showing curves - weight on hip, hands in hair, body angled (can be natural unposed OR intentional posed)
 4. OUTFIT: Sexy trendy pieces - describe fabric, cut, color, how it fits the body
 5. EXPRESSION: Confident sultry or playful - direct eye contact, slight smile, approachable energy
@@ -43,7 +59,7 @@ MANDATORY STRUCTURE (Single flowing paragraph):
 8. VIBE: End with "professional [candid OR shooting] photography, natural film grain, authentic skin texture with visible pores, 4K"
 
 BE SPECIFIC: Describe exact pose details, fabric textures, lighting direction, expression nuances, SKIN TEXTURE.
-STAY TRENDY: Reference current fashion, modern settings, Instagram-worthy moments.
+STAY CONSISTENT: Every detail must belong to the same location and session. No surprise props.
 STAY REAL: NO fantasy elements, NO impossible scenes, NO overly perfect rendering.
 OUTPUT: One continuous ultra-detailed paragraph only. NO lists.`;
 
@@ -596,7 +612,10 @@ function enhanceWithModifiers(basePrompt: string, mode: ContentMode): string {
 
 export async function POST(request: Request) {
     try {
-        const { contentMode = 'social' }: { contentMode?: ContentMode } = await request.json().catch(() => ({}));
+        const {
+            contentMode = 'social',
+            shootingDirection = 'random',
+        }: { contentMode?: ContentMode; shootingDirection?: ShootingDirectionId } = await request.json().catch(() => ({}));
 
         // Get user's API key (falls back to env var if not configured)
         const apiKey = await getUserApiKey();
@@ -651,21 +670,50 @@ export async function POST(request: Request) {
         // =================================================================
         // (At this point, contentMode must be 'social' since sensual/porn returned early)
 
-        const loc = randomizer.getWeightedRandom(SOCIAL_LOCATIONS, 'social_location');
-        const style = randomizer.getWeightedRandom(SOCIAL_STYLES, 'social_style');
+        // Resolve direction-specific pools (fall back to full pools if 'random' or empty)
+        const directionLocations = DIRECTION_LOCATIONS[shootingDirection];
+        const directionStyles = DIRECTION_STYLE_SEEDS[shootingDirection];
+        const hasDirectionLocations = directionLocations && directionLocations.length > 0;
+        const hasDirectionStyles = directionStyles && directionStyles.length > 0;
+
+        const loc = hasDirectionLocations
+            ? randomizer.getWeightedRandom(directionLocations, `dir_${shootingDirection}_loc`)
+            : randomizer.getWeightedRandom(SOCIAL_LOCATIONS, 'social_location');
+
+        const style = hasDirectionStyles
+            ? randomizer.getWeightedRandom(directionStyles, `dir_${shootingDirection}_style`)
+            : randomizer.getWeightedRandom(SOCIAL_STYLES, 'social_style');
+
         const action = randomizer.getWeightedRandom(SOCIAL_ACTIONS, 'social_action');
         const lighting = randomizer.getWeightedRandom(SOCIAL_LIGHTING, 'social_lighting');
 
-        const userMessage = `Generate an ULTRA-DETAILED editorial prompt.
+        // Direction system hint (empty string for 'random')
+        const directionMeta = SHOOTING_DIRECTIONS.find(d => d.id === shootingDirection);
+        const directionHint = directionMeta?.systemHint || '';
+
+        const isCandid = directionMeta?.category === 'candid';
+
+        const cameraMandate = isCandid
+            ? 'CAMERA RULE (ABSOLUTE): "Shot on iPhone [14/15/16] Pro, handheld" — use this EXACTLY. No professional cameras.'
+            : 'CAMERA RULE (ABSOLUTE): Use a professional camera (Canon EOS R6, Sony A7IV, Fujifilm X-T5, or similar DSLR/mirrorless). NO iPhone, NO smartphone camera.';
+
+        const userMessage = `Generate an ULTRA-DETAILED ${isCandid ? 'candid iPhone snapshot' : 'editorial'} prompt.
             
-            CREATIVE MIX:
-            - Location: ${loc}
+            SCENE SEEDS (use as INSPIRATION, not a checklist):
+            - Location/Moment: ${loc}
             - Style/Vibe: ${style}
             - Subject Action: ${action}
             - Lighting: ${lighting}
+            ${directionHint ? `\n            SHOOTING DIRECTION (MANDATORY): ${directionHint}` : ''}
             
-            INSTRUCTION: Use these elements as a starting point but DO NOT be literal. 
-            Mix them creatively to create a unique, unexpected fashion image.
+            ${cameraMandate}
+            
+            INSTRUCTIONS:
+            1. Pick the ONE location/moment above and build ONE coherent scene around it.
+            2. Use the other seeds as INSPIRATION — adapt them so they naturally fit the location.
+            3. If an element (action, prop, style detail) does NOT belong in this location, DROP IT.
+            4. Do NOT invent props, gimmicks or surrealist elements that would look strange in a real photo.
+            5. The result must feel like a REAL ${isCandid ? 'spontaneous iPhone snap — blur, grain, imperfect framing are GOOD' : 'professional photoshoot that could actually happen — sharp, intentional, editorial'}.
             Write as ONE FLOWING PARAGRAPH.`;
 
         // Call LLM

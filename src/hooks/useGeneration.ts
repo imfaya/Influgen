@@ -6,6 +6,7 @@ import { useReferenceImages } from './useReferenceImages';
 import { useGenerationPersistence } from './useGenerationPersistence';
 import { useImageGeneration } from './useImageGeneration';
 import { usePromptBuilder } from './usePromptBuilder';
+import type { ShootingDirectionId } from '@/lib/shootingDirections';
 
 export interface GenerationOptions {
     tags?: string[];
@@ -14,6 +15,7 @@ export interface GenerationOptions {
     targetGenerationId?: string;
     sourceInfo?: { generationId: string; imageUrl: string };
     stealItImage?: string;
+    stealIntensity?: '100' | '50' | '10';
     isRealismBoost?: boolean;
     modelOverride?: string;
     imageStrength?: number;
@@ -24,7 +26,7 @@ export interface GenerationOptions {
  * Main generation hook - Facade that coordinates all generation-related functionality
  * Refactored from 737 lines into modular, composable hooks
  */
-export function useGeneration() {
+export function useGeneration(shootingDirection?: ShootingDirectionId) {
     const {
         selectedInfluencer,
         parameters,
@@ -52,7 +54,7 @@ export function useGeneration() {
     } = useGenerationStore();
 
     // Use specialized hooks
-    const promptUtils = usePromptUtils(contentMode, selectedInfluencer.description);
+    const promptUtils = usePromptUtils(contentMode, selectedInfluencer.description, shootingDirection);
     const refImageManager = useReferenceImages();
     const persistence = useGenerationPersistence();
     const imageGen = useImageGeneration();
@@ -64,9 +66,9 @@ export function useGeneration() {
     /**
      * Randomize prompt using LLM API
      */
-    const randomizePrompt = useCallback(async () => {
+    const randomizePrompt = useCallback(async (direction?: ShootingDirectionId) => {
         setError(null);
-        const newPrompt = await promptUtils.randomizePrompt();
+        const newPrompt = await promptUtils.randomizePrompt(direction);
         if (newPrompt) {
             setPrompt(newPrompt);
         }
@@ -93,6 +95,7 @@ export function useGeneration() {
             sourceInfo,
             isSeries = !!inputImageOverride,
             stealItImage,
+            stealIntensity,
             isRealismBoost,
             modelOverride,
             imageStrength,
@@ -109,6 +112,7 @@ export function useGeneration() {
             contentMode,
             isRealismBoost,
             stealItImage,
+            stealIntensity,
             inputImageOverride,
             isSeries,
             seriesContext: seriesContext || undefined,
@@ -341,7 +345,7 @@ export function useGeneration() {
     /**
      * Generate batch of OG images with randomized prompts (all in parallel)
      */
-    const generateBatchOG = useCallback(async (count: number): Promise<void> => {
+    const generateBatchOG = useCallback(async (count: number, direction?: ShootingDirectionId): Promise<void> => {
         setError(null);
 
         const batchId = `batch_${Date.now()}`;
@@ -363,6 +367,7 @@ export function useGeneration() {
                         body: JSON.stringify({
                             influencerContext: selectedInfluencer.description,
                             contentMode: contentMode,
+                            shootingDirection: direction || shootingDirection || 'random',
                         }),
                     });
                     const data = await response.json();
@@ -474,8 +479,8 @@ export function useGeneration() {
      * Boost realism of an image (iPhone style)
      */
     const boostRealism = useCallback(async (imageUrl: string, generationId?: string) => {
-        const realismPrompt = "iphone photo, smartphone camera, natural lighting, candid moment, unedited, raw sensor data, slight noise, authentic, reality";
-        const negativePrompt = "vignette, dark corners, retro filter, instagram filter, sepia, black and white, professional, studio lighting, 4k, 8k, sharp, focused, clean, high quality, masterpiece, retouching, airbrushed, makeup, painting, drawing, illustration";
+        const realismPrompt = "modern smartphone photo, unedited candid snapshot, harsh direct lighting, slight oversharpening, digital camera noise, authentic real-life colors, amateur photography, true to life depth of field, snapshot quality, raw unaltered image, spontaneous moment";
+        const negativePrompt = "vintage, polaroid, disposable camera, hazy, washed out, faded, glowing, dreamy, bloom, soft focus, professional studio lighting, DSLR, bokeh, perfect skin, airbrushed, instagram filter, color graded, cinematic, perfect composition, glamorous retouching";
 
         return generate(imageUrl, undefined, {
             isSeries: !!generationId,

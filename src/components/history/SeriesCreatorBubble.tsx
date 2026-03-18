@@ -8,6 +8,7 @@ import React, { useState, useMemo, useCallback, createContext, useContext } from
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Layers, Plus, Minus, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { useGeneration } from '@/hooks/useGeneration';
 import { cn } from '@/lib/utils';
 
@@ -87,6 +88,7 @@ export function SeriesCreatorBubble({ isVisible, contentMode, children }: Series
 
         setIsGenerating(true);
         setGenerationProgress({ current: 0, total: totalSeries });
+        toast(`🚀 ${totalSeries} series generation${totalSeries > 1 ? 's' : ''} launched!`);
 
         try {
             // Build array of all generation promises
@@ -247,7 +249,7 @@ export function SeriesCreatorBubble({ isVisible, contentMode, children }: Series
                                     {/* Selected Photos Preview */}
                                     {selectedPhotos.size > 0 && (
                                         <div className="mb-3">
-                                            <div className="flex gap-2 overflow-x-auto pb-1">
+                                            <div className="flex flex-wrap gap-2 pb-1">
                                                 {Array.from(selectedPhotos.values()).map((photo) => (
                                                     <div
                                                         key={photo.imageUrl}

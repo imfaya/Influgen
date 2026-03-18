@@ -7,6 +7,7 @@ export interface PromptBuilderOptions {
     contentMode: ContentMode;
     isRealismBoost?: boolean;
     stealItImage?: string;
+    stealIntensity?: '100' | '50' | '10';
     inputImageOverride?: string;
     isSeries?: boolean;
     seriesContext?: { location?: string; outfit?: string; lighting?: string };
@@ -30,6 +31,7 @@ export function usePromptBuilder() {
             contentMode,
             isRealismBoost,
             stealItImage,
+            stealIntensity,
             inputImageOverride,
             isSeries,
             seriesContext,
@@ -49,6 +51,12 @@ export function usePromptBuilder() {
 
         // STEAL IT MODE: Identity swap prompt
         if (stealItImage) {
+            if (stealIntensity === '50') {
+                return `INSPIRED RECREATION: ${activeBasePrompt}. Take inspiration from the composition. Keep a similar vibe and style, but feel free to change the pose and framing. The subject wears similar style clothing to the reference image. The final subject is 100% the person described. No other faces allowed. ${userPrompt}`;
+            } else if (stealIntensity === '10') {
+                return `MOOD CAPTURE: ${activeBasePrompt}. Only capture the overall mood, lighting atmosphere and color palette from the reference. The pose, clothing, and setting should be entirely new and original. The final subject is 100% the person described. No other faces allowed. ${userPrompt}`;
+            }
+            // default 100
             return `IDENTITY SWAP: ${activeBasePrompt}. Replicate this identity PERFECTLY. The clothing, pose, camera angle, and background are copied EXACTLY from the first reference image, but ONLY swap the face with the features of the subject shown in the other reference images. The final subject is 100% the person described. No other faces allowed. ${userPrompt}`;
         }
 

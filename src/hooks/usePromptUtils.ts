@@ -1,18 +1,19 @@
 import { useState, useCallback } from 'react';
 import { ContentMode } from '@/types';
 import { generateRandomPrompt } from '@/lib/constants';
+import type { ShootingDirectionId } from '@/lib/shootingDirections';
 
 /**
  * Hook for managing prompt generation and randomization
  * Handles both AI-powered (LLM) and fallback prompt generation
  */
-export function usePromptUtils(contentMode: ContentMode, influencerDescription?: string) {
+export function usePromptUtils(contentMode: ContentMode, influencerDescription?: string, shootingDirection?: ShootingDirectionId) {
     const [isRandomizing, setIsRandomizing] = useState(false);
 
     /**
      * Generate random prompt using LLM API with fallback to simple random
      */
-    const randomizePrompt = useCallback(async (): Promise<string | null> => {
+    const randomizePrompt = useCallback(async (directionOverride?: ShootingDirectionId): Promise<string | null> => {
         setIsRandomizing(true);
 
         try {
@@ -25,6 +26,7 @@ export function usePromptUtils(contentMode: ContentMode, influencerDescription?:
                 body: JSON.stringify({
                     influencerContext: influencerDescription,
                     contentMode: contentMode,
+                    shootingDirection: directionOverride || shootingDirection || 'random',
                 }),
                 signal: controller.signal,
             });
@@ -47,7 +49,7 @@ export function usePromptUtils(contentMode: ContentMode, influencerDescription?:
         }
 
         return null;
-    }, [influencerDescription, contentMode]);
+    }, [influencerDescription, contentMode, shootingDirection]);
 
     /**
      * Generate AI-powered series variation prompt
